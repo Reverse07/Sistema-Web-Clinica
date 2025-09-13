@@ -1,0 +1,244 @@
+/* ========== RESET GLOBAL ========== */
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+}
+
+body {
+    height: 100vh;
+    font-family: 'Poppins', sans-serif;
+    background: linear-gradient(-45deg, #3e8ef7, #9f5fff, #6ed3cf, #f06292);
+    background-size: 400% 400%;
+    animation: gradientBG 18s ease infinite;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    padding: 1rem;
+}
+
+/* ========== DARK MODE AUTO ========== */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: linear-gradient(-45deg, #1e1e2f, #3e3e5f, #2c2c3c, #4a4a6a);
+    }
+}
+
+/* ========== BACKGROUND ANIMATION ========== */
+@keyframes gradientBG {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ========== CONTAINER ========== */
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 2.5rem;
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+    animation: fadeIn 1s ease;
+    transition: all 0.3s ease-in-out;
+    text-align: center;
+}
+
+/* ========== FADE ANIMATION ========== */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========== LOGO ========== */
+.logo-container {
+    margin-bottom: 1.5rem;
+}
+
+.logo-login {
+    width: 90px;
+    height: auto;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+    transition: transform 0.3s ease;
+}
+
+.logo-login:hover {
+    transform: scale(1.05);
+}
+
+/* ========== TITULO ========== */
+h2 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.2);
+}
+
+/* ========== FORMULARIO ========== */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.form-grupo {
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    gap: 1rem;
+}
+
+label {
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: #f0f0f0;
+    margin-bottom: 0.25rem;
+}
+
+input[type="email"],
+input[type="password"] {
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    font-size: 1rem;
+    backdrop-filter: blur(4px);
+    transition: all 0.3s ease;
+}
+
+input::placeholder {
+    color: #e0e0e0;
+}
+
+input:focus-visible {
+    outline: 2px solid #00c6ff;
+    background: rgba(255, 255, 255, 0.25);
+    transform: scale(1.03);
+}
+
+/* ========== CHECKBOX ========== */
+.checkbox-grupo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #eee;
+    margin-top: -0.5rem;
+    user-select: none;
+}
+
+.checkbox-grupo input[type="checkbox"] {
+    accent-color: #00c6ff;
+    transform: scale(1.1);
+}
+
+/* ========== BOTÓN ========== */
+.btn {
+    padding: 0.8rem;
+    background: linear-gradient(135deg, #00c6ff, #0072ff);
+    border: none;
+    border-radius: 12px;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 114, 255, 0.4);
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(255,255,255,0.15);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.btn:hover::after {
+    opacity: 1;
+}
+
+.btn:active {
+    transform: scale(0.97);
+    box-shadow: 0 2px 10px rgba(0, 114, 255, 0.3);
+}
+
+/* ========== ERROR MESSAGE ========== */
+.error-msg {
+    background: rgba(255, 0, 0, 0.15);
+    color: #ffdada;
+    padding: 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+    border-left: 4px solid #ff4c4c;
+    font-weight: 500;
+    animation: shake 0.4s ease;
+    text-align: left;
+}
+
+@keyframes shake {
+    0% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+    100% { transform: translateX(0); }
+}
+
+/* ========== LINK REGISTRO ========== */
+.link-registro {
+    margin-top: 1.5rem;
+    font-size: 0.9rem;
+    color: #ffffffcc;
+}
+
+.link-registro a {
+    color: #fff;
+    font-weight: 600;
+    text-decoration: underline;
+    transition: text-shadow 0.3s ease;
+}
+
+.link-registro a:hover {
+    text-shadow: 0 0 5px rgba(255, 255, 255, 0.6);
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 480px) {
+    .login-container {
+        padding: 2rem;
+    }
+
+    .logo-login {
+        width: 70px;
+    }
+
+    h2 {
+        font-size: 1.6rem;
+    }
+}
+
+/* ========== ACCESIBILIDAD ========== */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
