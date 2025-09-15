@@ -2,7 +2,7 @@
 // 📦 Importa configuración global (como BASE_URL)
 require_once __DIR__ . '/../configuracion/app.php';
 
-// 🧠 Clase para gestionar autenticación segura, roles y protección CSRF
+// 🧠La clase Autenticacion centraliza el manejo seguro de sesiones en PHP. Permite iniciar sesión, verificar roles, proteger formularios con tokens CSRF y cerrar sesión correctamente.
 class Autenticacion {
 
     // 🔐 Configura sesión segura con cookies protegidas

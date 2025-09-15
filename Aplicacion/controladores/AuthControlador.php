@@ -12,12 +12,14 @@ require_once __DIR__ . "/../modelos/Usuario.php";
 // 🔹 Importa el modelo de Rol (aunque no se usa directamente aquí)
 require_once __DIR__ . "/../modelos/Rol.php";
 
-class AuthControlador {
+class AuthControlador
+{
 
     // =====================
     // 📌 Vista Login
     // =====================
-    public function loginVista() {
+    public function loginVista()
+    {
         // 🔹 Muestra la vista del formulario de login
         require __DIR__ . "/../vistas/auth/login.php";
     }
@@ -25,7 +27,8 @@ class AuthControlador {
     // =====================
     // 📌 Procesar Login
     // =====================
-    public function login() {
+    public function login()
+    {
         // 🔹 Verifica si el formulario fue enviado por POST
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 🔹 Obtiene el email y la contraseña del formulario
@@ -52,13 +55,13 @@ class AuthControlador {
                 // 🔹 Redirige al usuario según su rol
                 switch ($usuario->getRolId()) {
                     case 1:
-                        header("Location: " . BASE_URL . "/aplicacion/vistas/admin/inicio.php"); // 🔹 Admin
+                        header("Location: " . BASE_URL . "/index.php?accion=dashboardAdmin");
                         break;
                     case 2:
-                        header("Location: " . BASE_URL . "/aplicacion/vistas/doctor/inicio.php"); // 🔹 Doctor
+                        header("Location: " . BASE_URL . "/index.php?accion=dashboardDoctor"); // 🔹 Doctor
                         break;
                     case 3:
-                        header("Location: " . BASE_URL . "/aplicacion/vistas/paciente/inicio.php"); // 🔹 Paciente
+                         header("Location: " . BASE_URL . "/index.php?accion=dashboardPaciente"); // 🔹 Paciente
                         break;
                     default:
                         header("Location: " . BASE_URL . "/publico/index.php"); // 🔹 Rol desconocido
@@ -80,7 +83,8 @@ class AuthControlador {
     // =====================
     // 📌 Vista Registro
     // =====================
-    public function registroVista() {
+    public function registroVista()
+    {
         // 🔹 Muestra la vista del formulario de registro
         require __DIR__ . "/../vistas/auth/registro.php";
     }
@@ -88,7 +92,8 @@ class AuthControlador {
     // =====================
     // 📌 Procesar Registro
     // =====================
-    public function registro() {
+    public function registro()
+    {
         // 🔹 Verifica si el formulario fue enviado por POST
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // 🔹 Obtiene los datos del formulario
@@ -98,19 +103,17 @@ class AuthControlador {
             $telefono = $_POST['telefono'] ?? '';
             $rol_id   = $_POST['rol_id'] ?? 3; // 🔹 Si no se envía rol_id, se asigna 3 (paciente)
 
-            // 🔹 Crea una nueva instancia de Usuario con los datos
             $usuario = new Usuario([
-                'nombre'   => $nombre,
-                'email'    => $email,
-                'password' => $password,
-                'telefono' => $telefono,
-                'rol_id'   => $rol_id
+                'nombre'   => $_POST['nombre'],
+                'email'    => $_POST['email'],
+                'password' => $_POST['password'], // ⚠️ en plano, SIN hash aquí
+                'telefono' => $_POST['telefono'],
+                'rol_id'   => $_POST['rol_id']
             ]);
-
             // 🔹 Intenta guardar el usuario en la base de datos
             if ($usuario->crearUsuario()) {
                 // 🔹 Si se registra correctamente, redirige al inicio público con mensaje
-                header("Location: " . BASE_URL . "/publico/index.php?msg=registrado");
+                header("Location: " . BASE_URL . "/index.php?accion=loginVista&msg=registrado");
                 exit;
             } else {
                 // 🔹 Si falla el registro, muestra error y vuelve a la vista de registro
@@ -126,7 +129,8 @@ class AuthControlador {
     // =====================
     // 📌 Logout
     // =====================
-    public function logout() {
+    public function logout()
+    {
         // 🔹 Cierra la sesión del usuario
         Autenticacion::logout();
 

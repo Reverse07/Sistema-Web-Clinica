@@ -11,14 +11,14 @@ $csrf = Autenticacion::tokenCsrf();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Usuario</title>
-    <link rel = "stylesheet" href="<?= BASE_URL?>/publico/recursos/css/app.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/recursos/css/app.css">
 
 </head>
 <body>
 
 <div class = "registro-container">
     <div class = "logo-container">
-        <img src = "<?= BASE_URL ?>/publico/img/logo.png" alt="Logo de la aplicación" class="logo-login">
+        <img src = "<?= BASE_URL ?>/recursos/img/logoClinica.jpg" alt="Logo de la aplicación" class="logo-login">
     </div>
 
     <h2>Crear cuenta</h2>
@@ -26,7 +26,8 @@ $csrf = Autenticacion::tokenCsrf();
         <div class="error-msg"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <form action="<?= BASE_URL ?>/publico/index.php?accion=registro" method="POST">
+
+    <form action="<?= BASE_URL ?>/index.php?accion=registro" method="POST">
         <input type="hidden" name="csrf" value="<?= $csrf ?>">
 
         <div class = "form-grupo">
@@ -64,7 +65,7 @@ $csrf = Autenticacion::tokenCsrf();
 
 <p class = "link-login">
     ¿Ya tienes cuenta?
-    <a href="<?= BASE_URL ?>/publico/index.php?accion=loginVista">Inici sesion aqui</a>
+    <a href="<?= BASE_URL ?>/index.php?accion=loginVista">Inicia sesion aqui</a>
 </p>
 
 </div>
