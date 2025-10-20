@@ -1,11 +1,11 @@
 <?php
 // =====================
-// 🩺 Vista: Editar Doctor
+// 🧑‍⚕️ Vista: Editar Paciente
 // =====================
 ?>
 
 <div class="formulario-container">
-    <h1>✏️ Editar Doctor</h1>
+    <h1>✏️ Editar Paciente</h1>
 
     <?php if (isset($_SESSION['errores']) && !empty($_SESSION['errores'])): ?>
         <div class="alert alert-danger">
@@ -18,8 +18,8 @@
         <?php unset($_SESSION['errores']); ?>
     <?php endif; ?>
 
-    <form method="POST" action="<?= BASE_URL ?>/index.php?accion=actualizarDoctor&id=<?= $doctor->getId() ?>" class="form-doctor">
-        
+    <form method="POST" action="<?= BASE_URL ?>/index.php?accion=actualizarPaciente&id=<?= $paciente->getId() ?>" class="form-doctor">
+
         <!-- Nombre -->
         <div class="form-group">
             <label for="nombre">Nombre:</label>
@@ -27,7 +27,7 @@
                 type="text" 
                 id="nombre" 
                 name="nombre" 
-                value="<?= htmlspecialchars($doctor->getNombre()) ?>" 
+                value="<?= htmlspecialchars($paciente->getNombre()) ?>" 
                 required 
                 class="form-control">
         </div>
@@ -39,7 +39,7 @@
                 type="email" 
                 id="email" 
                 name="email" 
-                value="<?= htmlspecialchars($doctor->getEmail()) ?>" 
+                value="<?= htmlspecialchars($paciente->getEmail()) ?>" 
                 required 
                 class="form-control">
         </div>
@@ -51,13 +51,13 @@
                 type="text" 
                 id="telefono" 
                 name="telefono" 
-                value="<?= htmlspecialchars($doctor->getTelefono()) ?>" 
+                value="<?= htmlspecialchars($paciente->getTelefono()) ?>" 
                 class="form-control">
         </div>
 
         <!-- Contraseña (opcional) -->
         <div class="form-group">
-            <label for="password">Contraseña (dejar en blanco para no cambiar):</label>
+            <label for="password">Contraseña (dejar en blanco si no desea cambiar):</label>
             <input 
                 type="password" 
                 id="password" 
@@ -66,56 +66,67 @@
                 class="form-control">
         </div>
 
-        <!-- Especialidad -->
+        <!-- Fecha de Nacimiento -->
         <div class="form-group">
-            <label for="especialidad_id">Especialidad:</label>
-            <select 
-                id="especialidad_id" 
-                name="especialidad_id" 
-                required 
+            <label for="fecha_nacimiento">Fecha de Nacimiento:</label>
+            <input 
+                type="date" 
+                id="fecha_nacimiento" 
+                name="fecha_nacimiento" 
+                value="<?= htmlspecialchars($pacienteData->getFechaNacimiento()) ?>"
                 class="form-control">
-                <option value="">-- Seleccione una especialidad --</option>
-                <?php if (isset($especialidades) && !empty($especialidades)): ?>
-                    <?php foreach ($especialidades as $especialidad): ?>
-                        <option 
-                            value="<?= $especialidad->getId() ?>"
-                            <?= ($doctorData && $doctorData->getEspecialidadId() == $especialidad->getId()) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($especialidad->getNombre()) ?>
-                        </option>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <option value="">No hay especialidades disponibles</option>
-                <?php endif; ?>
+        </div>
+
+        <!-- Género -->
+        <div class="form-group">
+            <label for="genero">Género:</label>
+            <select 
+                id="genero" 
+                name="genero" 
+                class="form-control">
+                <option value="">-- Selecciona --</option>
+                <option value="Masculino" <?= $pacienteData->getGenero() === 'Masculino' ? 'selected' : '' ?>>Masculino</option>
+                <option value="Femenino" <?= $pacienteData->getGenero() === 'Femenino' ? 'selected' : '' ?>>Femenino</option>
+                <option value="Otro" <?= $pacienteData->getGenero() === 'Otro' ? 'selected' : '' ?>>Otro</option>
             </select>
         </div>
 
-        <!-- Número de Colegiatura -->
+        <!-- Dirección -->
         <div class="form-group">
-            <label for="numero_colegiatura">Número de Colegiatura:</label>
+            <label for="direccion">Dirección:</label>
+            <textarea 
+                id="direccion" 
+                name="direccion" 
+                rows="3" 
+                class="form-control"><?= htmlspecialchars($pacienteData->getDireccion()) ?></textarea>
+        </div>
+
+        <!-- DNI -->
+        <div class="form-group">
+            <label for="dni">DNI:</label>
             <input 
                 type="text" 
-                id="numero_colegiatura" 
-                name="numero_colegiatura" 
-                value="<?= $doctorData ? htmlspecialchars($doctorData->getNumeroColegiatura()) : '' ?>" 
-                required 
-                class="form-control"
-                placeholder="Ej: CMP-12345">
+                id="dni" 
+                name="dni" 
+                value="<?= htmlspecialchars($pacienteData->getDni()) ?>" 
+                class="form-control">
         </div>
 
         <!-- Botones -->
         <div class="form-actions">
             <button type="submit" class="btn-guardar">💾 Guardar Cambios</button>
-            <a href="<?= BASE_URL ?>/index.php?accion=gestionarDoctores" class="btn-cancelar">❌ Cancelar</a>
+            <a href="<?= BASE_URL ?>/index.php?accion=gestionarPacientes" class="btn-cancelar">❌ Cancelar</a>
         </div>
     </form>
 </div>
 
 <style>
+/* 🩺 Estilo general del contenedor */
 .formulario-container {
     max-width: 600px;
     margin: 20px auto;
     padding: 30px;
-    background: white;
+    background: #fff;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
@@ -123,8 +134,11 @@
 .formulario-container h1 {
     margin-bottom: 25px;
     color: #333;
+    text-align: center;
+    font-weight: 700;
 }
 
+/* 📝 Estilo de los campos del formulario */
 .form-group {
     margin-bottom: 20px;
 }
@@ -150,26 +164,30 @@
     box-shadow: 0 0 5px rgba(76, 175, 80, 0.2);
 }
 
+/* 📌 Acciones */
 .form-actions {
     display: flex;
     gap: 10px;
     margin-top: 30px;
+    justify-content: center;
 }
 
 .btn-guardar, .btn-cancelar {
     padding: 12px 25px;
     border: none;
-    border-radius: 30px;
+    border-radius: 5px;
     cursor: pointer;
     font-size: 14px;
     text-decoration: none;
     display: inline-block;
     text-align: center;
+    font-weight: 600;
 }
 
 .btn-guardar {
     background: #4CAF50;
-    color: white;
+    color: #fff;
+    border-radius: 30px;
 }
 
 .btn-guardar:hover {
@@ -178,13 +196,15 @@
 
 .btn-cancelar {
     background: #f44336;
-    color: white;
+    color: #fff;
+    border-radius: 30px;
 }
 
 .btn-cancelar:hover {
     background: #da190b;
 }
 
+/* ⚠️ Alertas de error */
 .alert {
     padding: 15px;
     margin-bottom: 20px;

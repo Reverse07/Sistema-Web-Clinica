@@ -28,7 +28,7 @@
                     </td>
                     <td>
                         <a href="<?= BASE_URL ?>/index.php?accion=editarUsuario&id=<?= $usuario->getId() ?>" class="btn-editar">✏️ Editar</a>
-                        <a href="<?= BASE_URL ?>/index.php?accion=eliminarUsuario&id=<?= $usuario->getId() ?>" class="btn-eliminar" onclick="return confirm('¿Eliminar este usuario?')">🗑️ Eliminar</a>
+                        <a href="<?= BASE_URL ?>/index.php?accion=eliminarUsuario&id=<?= $usuario->getId() ?>" class="btn-eliminar">🗑️ Eliminar</a>
                     </td>
                 </tr>
             <?php endforeach; ?>

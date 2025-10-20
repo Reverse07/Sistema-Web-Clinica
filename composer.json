@@ -1,0 +1,22 @@
+{
+    "name": "user/clinica",
+    "description": "Sistema de gestión de clínica",
+    "type": "project",
+    "require": {
+        "dompdf/dompdf": "^3.1",
+        "phpoffice/phpspreadsheet": "^5.1"
+    },
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "User\\Clinica\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Diego Arroyo Zuasnabar",
+            "email": "tmldiego7@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable"
+}

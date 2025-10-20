@@ -22,6 +22,26 @@
             <input type="password" name="password" id="password" required minlength="6">
         </div>
 
+        <div class="campo">
+            <label for="especialidad_id">Especialidad:</label>
+            <select name="especialidad_id" id="especialidad_id" required>
+                <?php if (!empty($especialidades)): ?>
+                    <?php foreach ($especialidades as $esp): ?>
+                        <option value="<?= htmlspecialchars($esp->getId()) ?>">
+                            <?= htmlspecialchars($esp->getNombre()) ?>
+                        </option>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <option value="">⚠️ No hay especialidades registradas</option>
+                <?php endif; ?>
+            </select>
+        </div>
+
+        <div class="campo">
+            <label for="numero_colegiatura">N° Colegiatura:</label>
+            <input type="text" name="numero_colegiatura" id="numero_colegiatura" required maxlength="50">
+        </div>
+
         <div class="acciones-formulario">
             <button type="submit" class="btn-guardar">💾 Guardar Doctor</button>
             <a href="?accion=gestionarDoctores" class="btn-cancelar">↩️ Cancelar</a>

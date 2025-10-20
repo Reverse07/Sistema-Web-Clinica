@@ -1,6 +1,5 @@
 <?php
 require_once __DIR__ . "/../configuracion/app.php";
-require_once __DIR__ . "/../includes/encabezado.php";
 ?>
 
 <!DOCTYPE html>
@@ -16,6 +15,9 @@ require_once __DIR__ . "/../includes/encabezado.php";
 </head>
 <body>
 
+<!-- 🔝 Encabezado con saludo y botón de logout -->
+<?php include __DIR__ . "/../includes/encabezado.php"; ?>
+
 <div class="panel-admin">
     <!-- 🧭 Menú lateral -->
     <aside class="sidebar">
@@ -28,10 +30,12 @@ require_once __DIR__ . "/../includes/encabezado.php";
     </main>
 </div>
 
+<!-- 🔻 Footer -->
 <?php include __DIR__ . "/../includes/footer.php"; ?>
 
-
 <!-- 📜 Scripts base -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="<?= BASE_URL ?>/recursos/js/app.js"></script>
 <script src="<?= BASE_URL ?>/recursos/js/app.js"></script>
 </body>
 </html>

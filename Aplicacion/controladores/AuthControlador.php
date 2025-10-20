@@ -129,13 +129,13 @@ class AuthControlador
     // =====================
     // 📌 Logout
     // =====================
-    public function logout()
-    {
-        // 🔹 Cierra la sesión del usuario
-        Autenticacion::logout();
+    public function logout() {
+    session_start();              // 🔐 Inicia sesión si no está iniciada
+    session_unset();              // 🧹 Limpia variables de sesión
+    session_destroy();            // 🔥 Destruye la sesión
 
-        // 🔹 Redirige al inicio público
-        header("Location: " . BASE_URL . "/publico/index.php");
-        exit;
-    }
+    header("Location: ?accion=loginVista"); // 🚀 Redirige al login
+    exit;
+}
+
 }

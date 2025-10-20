@@ -1,108 +1,174 @@
 <?php
-
 // 📦 Importa la clase BaseDatos para acceder a la conexión PDO
 require_once __DIR__ . "/../../nucleo/BaseDatos.php";
 
-// 👤 Clase que representa a un usuario del sistema clínico
+/**
+ * Clase Usuario
+ * 
+ * Representa a un usuario en el sistema.
+ * Proporciona métodos CRUD y utilidades para autenticación y gestión de roles.
+ */
 class Usuario
 {
+    // =====================
+    // Propiedades
+    // =====================
+    private int $id = 0;
+    private string $nombre = '';
+    private string $email = '';
+    private string $password = '';
+    private string $telefono = '';
+    private int $rol_id = 0;
 
-    // 🆔 Identificador único del usuario
-    private int $id;
-
-    // 📛 Nombre completo del usuario
-    private string $nombre;
-
-    // 📧 Correo electrónico del usuario
-    private string $email;
-
-    // 🔐 Contraseña encriptada del usuario
-    private string $password;
-
-    // 📞 Teléfono de contacto del usuario
-    private string $telefono;
-
-    // 🧩 ID del rol asignado (admin, doctor, paciente)
-    private int $rol_id;
-
-    // 🩺 Especialidad médica del doctor (solo si rol_id = 2)
-    private ?string $especialidad = null;
-
-
-
-    // 🏗️ Constructor que recibe un array de datos para inicializar el objeto
+    // =====================
+    // Constructor
+    // =====================
     public function __construct(array $data = [])
     {
-        if ($data) {
-            $this->id           = $data['id'] ?? 0;
-            $this->nombre       = $data['nombre'] ?? '';
-            $this->email        = $data['email'] ?? '';
-            $this->password     = $data['password'] ?? '';
-            $this->telefono     = $data['telefono'] ?? '';
-            $this->rol_id       = $data['rol_id'] ?? 0;
-            $this->especialidad = $data['especialidad'] ?? 'No definida'; // ✅ Esta línea es clave
-        }
+        $this->id = (int) ($data['id'] ?? $data['ID'] ?? 0);
+        $this->nombre = $data['nombre'] ?? $data['name'] ?? '';
+        $this->email = $data['email'] ?? $data['correo'] ?? '';
+        $this->password = $data['password'] ?? $data['passwd'] ?? '';
+        $this->telefono = $data['telefono'] ?? $data['telefono_contacto'] ?? '';
+        $this->rol_id = (int) ($data['rol_id'] ?? $data['role_id'] ?? 0);
     }
 
+    // =====================
+    // Métodos estáticos CRUD
+    // =====================
 
-    // 🔍 Busca un usuario por su email en la base de datos
+    /**
+     * Busca un usuario por email
+     */
     public static function buscarPorEmail(string $email): ?Usuario
     {
-        $pdo = BaseDatos::pdo(); // 🔌 Obtiene la conexión PDO
-        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1"); // 📄 Prepara consulta
-        $stmt->execute(['email' => $email]); // 🚀 Ejecuta con parámetro seguro
-        $data = $stmt->fetch(); // 📥 Obtiene los datos
-
-        return $data ? new Usuario($data) : null; // 🔁 Devuelve instancia o null si no existe
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE email = :email LIMIT 1");
+        $stmt->execute([':email' => $email]);
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $fila ? new Usuario($fila) : null;
     }
 
-    // 📝 Crea un nuevo usuario en la base de datos
+    /**
+     * Crea un nuevo usuario en la base de datos
+     */
     public function crearUsuario(): bool
     {
         try {
-            $pdo = BaseDatos::pdo(); // 🔌 Conexión PDO
+            $pdo = BaseDatos::pdo();
             $stmt = $pdo->prepare(
                 "INSERT INTO usuarios (nombre, email, password, telefono, rol_id) 
-             VALUES (:nombre, :email, :password, :telefono, :rol_id)"
+                 VALUES (:nombre, :email, :password, :telefono, :rol_id)"
             );
 
-            return $stmt->execute([
-                'nombre'   => $this->nombre,
-                'email'    => $this->email,
-                'password' => password_hash($this->password, PASSWORD_BCRYPT),
-                'telefono' => $this->telefono,
-                'rol_id'   => $this->rol_id
+            $pwd = $this->password;
+            if (!empty($pwd) && !str_starts_with($pwd, '$2y$') && !str_starts_with($pwd, '$2a$')) {
+                $pwd = password_hash($pwd, PASSWORD_BCRYPT);
+            }
+
+            $ok = $stmt->execute([
+                ':nombre' => $this->nombre,
+                ':email' => $this->email,
+                ':password' => $pwd,
+                ':telefono' => $this->telefono,
+                ':rol_id' => $this->rol_id
             ]);
+
+            if ($ok) {
+                $this->id = (int) $pdo->lastInsertId();
+            }
+
+            return (bool) $ok;
         } catch (PDOException $e) {
-            // 👀 Mostrar error exacto
-            echo "❌ Error en crearUsuario(): " . $e->getMessage();
+            error_log("Usuario::crearUsuario error: " . $e->getMessage());
             return false;
         }
     }
 
-
-    // 🔐 Verifica si la contraseña ingresada coincide con la almacenada
-    public function verificarContraseña(string $password): bool
-    {
-        return password_verify($password, $this->password); // 🔍 Compara usando hash seguro
-    }
-
-    // 📋 Obtiene todos los usuarios registrados en la base de datos
+    /**
+     * Devuelve todos los usuarios
+     */
     public static function obtenerTodos(): array
     {
-        $pdo = BaseDatos::pdo(); // 🔌 Conexión PDO
-        $stmt = $pdo->query("SELECT * FROM usuarios ORDER BY id ASC"); // 📄 Consulta todos los usuarios
-        $usuarios = []; // 📦 Array para almacenar resultados
-
-        // 🔁 Recorre cada fila y crea una instancia de Usuario
-        while ($fila = $stmt->fetch()) {
-            $usuarios[] = new Usuario($fila); // ➕ Agrega al array
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->query("SELECT * FROM usuarios ORDER BY id ASC");
+        $usuarios = [];
+        while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $usuarios[] = new Usuario($fila);
         }
-
-        return $usuarios; // 📤 Devuelve el array completo
+        return $usuarios;
     }
 
-    // 🔢 Cuenta todos los usuarios registrados
+    /**
+     * Busca un usuario por ID
+     */
+    public static function buscarPorId(int $id): ?Usuario
+    {
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE id = :id LIMIT 1");
+        $stmt->execute([':id' => $id]);
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $fila ? new Usuario($fila) : null;
+    }
+
+    /**
+     * Actualiza datos de un usuario
+     */
+    public static function actualizarUsuario($id, $nombre, $email, $telefono, $password = null): bool
+    {
+        $pdo = BaseDatos::pdo();
+        try {
+            $sql = "UPDATE usuarios SET nombre = :nombre, email = :email, telefono = :telefono";
+            $params = [
+                ':nombre' => $nombre,
+                ':email' => $email,
+                ':telefono' => $telefono,
+                ':id' => $id
+            ];
+
+            if (!empty($password)) {
+                $sql .= ", password = :password";
+                $params[':password'] = str_starts_with($password, '$2y$') || str_starts_with($password, '$2a$')
+                    ? $password
+                    : password_hash($password, PASSWORD_BCRYPT);
+            }
+
+            $sql .= " WHERE id = :id";
+            $stmt = $pdo->prepare($sql);
+            return (bool) $stmt->execute($params);
+        } catch (PDOException $e) {
+            error_log("Usuario::actualizarUsuario error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Elimina un usuario por ID
+     */
+    public static function eliminarUsuario(int $id): bool
+    {
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->prepare("DELETE FROM usuarios WHERE id = :id");
+        return (bool) $stmt->execute([':id' => $id]);
+    }
+
+    // =====================
+    // Métodos adicionales
+    // =====================
+
+    /**
+     * Cambia el rol de un usuario
+     */
+    public static function cambiarRol(int $id, int $rol_id): bool
+    {
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->prepare("UPDATE usuarios SET rol_id = :rol_id WHERE id = :id");
+        return (bool) $stmt->execute([':rol_id' => $rol_id, ':id' => $id]);
+    }
+
+    /**
+     * Contar todos los usuarios
+     */
     public static function contarTodos(): int
     {
         $pdo = BaseDatos::pdo();
@@ -110,128 +176,154 @@ class Usuario
         return (int) $stmt->fetchColumn();
     }
 
-    // 🔢 Cuenta usuarios por tipo de rol (admin, doctor, paciente)
-    public static function contarPorRol(string $rolNombre): int
+    /**
+     * Contar usuarios por rol
+     */
+    public static function contarPorRol($rol): int
     {
         $pdo = BaseDatos::pdo();
 
-        // 🧠 Asume que tienes una tabla 'roles' con nombre y id
-        $stmtRol = $pdo->prepare("SELECT id FROM roles WHERE nombre = :nombre LIMIT 1");
-        $stmtRol->execute(['nombre' => $rolNombre]);
-        $rolId = $stmtRol->fetchColumn();
+        if (is_numeric($rol)) {
+            $rolId = (int) $rol;
+        } else {
+            $stmtRol = $pdo->prepare("SELECT id FROM roles WHERE nombre = :nombre LIMIT 1");
+            $stmtRol->execute([':nombre' => $rol]);
+            $rolId = $stmtRol->fetchColumn();
+        }
 
         if (!$rolId) return 0;
 
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM usuarios WHERE rol_id = :rol_id");
-        $stmt->execute(['rol_id' => $rolId]);
+        $stmt->execute([':rol_id' => $rolId]);
         return (int) $stmt->fetchColumn();
     }
 
-
-    public static function buscarPorId(int $id): ?Usuario
+    /**
+     * Obtener usuarios por rol
+     */
+    public static function obtenerPorRol($rol): array
     {
         $pdo = BaseDatos::pdo();
-        $sql = "SELECT * FROM usuarios WHERE id = :id LIMIT 1";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([':id' => $id]);
 
-        $datos = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($datos) {
-            return new Usuario($datos); // Asumiendo que tienes un constructor que acepta array
+        if (is_numeric($rol)) {
+            $rolId = (int) $rol;
+        } else {
+            $stmtRol = $pdo->prepare("SELECT id FROM roles WHERE nombre = :nombre LIMIT 1");
+            $stmtRol->execute([':nombre' => $rol]);
+            $rolId = $stmtRol->fetchColumn();
         }
-
-        return null;
-    }
-
-
-    // 🔍 Obtiene todos los usuarios que tienen un rol específico
-    public static function obtenerPorRol(string $rolNombre): array
-    {
-        $pdo = BaseDatos::pdo();
-
-        // 🧠 Si tienes tabla 'roles', busca el ID por nombre
-        $stmtRol = $pdo->prepare("SELECT id FROM roles WHERE nombre = :nombre LIMIT 1");
-        $stmtRol->execute(['nombre' => $rolNombre]);
-        $rolId = $stmtRol->fetchColumn();
 
         if (!$rolId) return [];
 
         $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE rol_id = :rol_id ORDER BY id ASC");
-        $stmt->execute(['rol_id' => $rolId]);
+        $stmt->execute([':rol_id' => $rolId]);
 
         $usuarios = [];
-        while ($fila = $stmt->fetch()) {
+        while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $usuarios[] = new Usuario($fila);
         }
 
         return $usuarios;
     }
 
-    public static function insertarDoctor($nombre, $email, $telefono)
+    /**
+     * Verificar contraseña en login
+     */
+    public function verificarContraseña(string $password): bool
     {
-        $sql = "INSERT INTO usuarios (nombre, email, telefono, rol_id, especialidad)
-            VALUES (:nombre, :email, :telefono, 2, 'No definida')";
-
-        $stmt = BaseDatos::pdo()->prepare($sql);
-        $stmt->execute([
-            ':nombre' => $nombre,
-            ':email' => $email,
-            ':telefono' => $telefono
-        ]);
+        if (empty($this->password)) return false;
+        return password_verify($password, $this->password);
     }
 
-    public function getEspecialidad()
+        public static function eliminarPaciente(int $id): bool
     {
-        return $this->especialidad ?? 'No definida';
+        $pdo = BaseDatos::pdo();
+        try {
+            // 🚨 Inicia transacción
+            $pdo->beginTransaction();
+
+            // 🧼 Eliminar primero el registro en pacientes
+            $stmtPaciente = $pdo->prepare("DELETE FROM pacientes WHERE usuario_id = :id");
+            $stmtPaciente->execute([':id' => $id]);
+
+            // 🧼 Luego eliminar el usuario
+            $stmtUsuario = $pdo->prepare("DELETE FROM usuarios WHERE id = :id");
+            $stmtUsuario->execute([':id' => $id]);
+
+            // ✅ Confirma cambios
+            $pdo->commit();
+            return true;
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            error_log("Usuario::eliminarPaciente error: " . $e->getMessage());
+            return false;
+        }
     }
 
-    public static function actualizarDoctor($id, $nombre, $email, $telefono, $especialidad)
+     public static function eliminarDoctor(int $id): bool
     {
-        $sql = "UPDATE usuarios SET nombre = :nombre, email = :email, telefono = :telefono, especialidad = :especialidad WHERE id = :id";
-        $stmt = BaseDatos::pdo()->prepare($sql);
-        $stmt->execute([
-            ':nombre' => $nombre,
-            ':email' => $email,
-            ':telefono' => $telefono,
-            ':especialidad' => $especialidad,
-            ':id' => $id
-        ]);
-    }
+        $pdo = BaseDatos::pdo();
+        try {
+            // 🚨 Inicia transacción
+            $pdo->beginTransaction();
 
+            // 🧼 Eliminar primero el registro en doctores
+            $stmtDoctor = $pdo->prepare("DELETE FROM doctores WHERE usuario_id = :id");
+            $stmtDoctor->execute([':id' => $id]);
+
+            // 🧼 Luego eliminar el usuario
+            $stmtUsuario = $pdo->prepare("DELETE FROM usuarios WHERE id = :id");
+            $stmtUsuario->execute([':id' => $id]);
+
+            // ✅ Confirma cambios
+            $pdo->commit();
+            return true;
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            error_log("Usuario::eliminarDoctor error: " . $e->getMessage());
+            return false;
+        }
+    }
 
 
     // =====================
-    // 📌 Métodos Getters
+    // Getters
     // =====================
-
-    // 🔙 Devuelve el ID del usuario
     public function getId(): int
     {
         return $this->id;
     }
 
-    // 🔙 Devuelve el nombre del usuario
     public function getNombre(): string
     {
         return $this->nombre;
     }
 
-    // 🔙 Devuelve el email del usuario
     public function getEmail(): string
     {
         return $this->email;
     }
 
-    // 🔙 Devuelve el teléfono del usuario
     public function getTelefono(): string
     {
         return $this->telefono;
     }
 
-    // 🔙 Devuelve el ID del rol del usuario
     public function getRolId(): int
     {
         return $this->rol_id;
+    }
+
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
+    // =====================
+    // Setters
+    // =====================
+    public function setPassword(string $password): void
+    {
+        $this->password = $password;
     }
 }
