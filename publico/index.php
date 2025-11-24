@@ -3,7 +3,7 @@
 // 📌 Punto de entrada principal del sistema
 // =====================
 
-// 🔹 Configuración global
+// 🔹 Configuración global 
 require_once __DIR__ . "/../configuracion/app.php";
 
 // 🔹 Núcleo del sistema
@@ -37,13 +37,15 @@ $accion = $_GET['accion'] ?? (Autenticacion::usuarioId() ? 'dashboardAdmin' : 'l
 // 📦 Mapa de rutas disponibles
 $rutas = [
     // ========================================
-    // 🔐 AUTENTICACIÓN
-    // ========================================
-    "loginVista"    => [AuthControlador::class, "loginVista"],
-    "login"         => [AuthControlador::class, "login"],
-    "registroVista" => [AuthControlador::class, "registroVista"],
-    "registro"      => [AuthControlador::class, "registro"],
-    "logout"        => [AuthControlador::class, "logout"],
+// 🔐 AUTENTICACIÓN
+// ========================================
+"loginVista"    => [AuthControlador::class, "loginVista"],
+"login"         => [AuthControlador::class, "login"],
+"registroVista" => [AuthControlador::class, "registroVista"],
+"registro"      => [AuthControlador::class, "registro"],
+"logout"        => [AuthControlador::class, "logout"],
+"terminos"      => [AuthControlador::class, "terminos"],
+"privacidad"    => [AuthControlador::class, "privacidad"],  // ✅ AGREGAR ESTA LÍNEA
 
     // ========================================
     // 👨‍💼 ADMINISTRADOR - Dashboard y Generales
@@ -52,6 +54,8 @@ $rutas = [
     "adminDashboard"     => [AdminControlador::class, "dashboard"],
     "verReportes"        => [AdminControlador::class, "verReportes"],
     "adminReportes"      => [AdminControlador::class, "verReportes"],
+    "contacto"           => [AdminControlador::class, "contacto"],          // ✅ NUEVA
+    "enviarContacto"     => [AdminControlador::class, "enviarContacto"],
 
     // ========================================
     // ⚙️ CONFIGURACIÓN DEL SISTEMA (Solo Admin)
@@ -116,21 +120,47 @@ $rutas = [
     "cambiarPassword"    => [UsuarioControlador::class, "cambiarPassword"],
 
     // ========================================
-    // 📅 CITAS
-    // ========================================
-    "gestionarCitas" => [CitaControlador::class, "gestionar"],
-    "crearCita"      => [CitaControlador::class, "crear"],
-    "guardarCita"    => [CitaControlador::class, "guardar"],
-    "editarCita"     => [CitaControlador::class, "editar"],
-    "actualizarCita" => [CitaControlador::class, "actualizar"],
-    "cancelarCita"   => [CitaControlador::class, "cancelar"],
-    "confirmarCita"  => [CitaControlador::class, "confirmar"],
+// 📅 CITAS
+// ========================================
+// Vista principal
+"gestionarCitas"  => [CitaControlador::class, "gestionar"],
+"citas"           => [CitaControlador::class, "gestionar"],
+
+// Crear
+"crearCita"       => [CitaControlador::class, "crear"],
+"crear"           => [CitaControlador::class, "crear"],
+
+// Guardar
+"guardarCita"     => [CitaControlador::class, "guardar"],
+"guardar"         => [CitaControlador::class, "guardar"],
+
+// Editar
+"editarCita"      => [CitaControlador::class, "editar"],
+"editar"          => [CitaControlador::class, "editar"], // ✅ Usado en la tabla
+
+// Actualizar
+"actualizarCita"  => [CitaControlador::class, "actualizar"],
+"actualizar"      => [CitaControlador::class, "actualizar"],
+
+// Confirmar
+"confirmarCita"   => [CitaControlador::class, "confirmar"],
+"confirmar"       => [CitaControlador::class, "confirmar"], // ✅ Usado en la tabla
+
+// Cancelar
+"cancelarCita"    => [CitaControlador::class, "cancelar"],
+"cancelar"        => [CitaControlador::class, "cancelar"], // ✅ Usado en la tabla
+
+// Eliminar
+"eliminarCita"    => [CitaControlador::class, "eliminarCita"],
 
     // ========================================
     // 💳 FACTURAS
     // ========================================
     "gestionarFacturas" => [FacturaControlador::class, "gestionarFacturas"],
     "crearFactura"      => [FacturaControlador::class, "crear"],
+    "editarFactura"     => [FacturaControlador::class, "editarFactura"],
+    "actualizarFactura" => [FacturaControlador::class, "actualizarFactura"],
+    "eliminarFactura"   => [FacturaControlador::class, "eliminarFactura"],
     "guardarFactura"    => [FacturaControlador::class, "guardar"],
     "verFactura"        => [FacturaControlador::class, "ver"],
     "descargarFactura"  => [FacturaControlador::class, "descargar"],
@@ -148,7 +178,7 @@ $rutas = [
     // ========================================
     // 📊 REPORTES
     // ========================================
-    "reportes"        => [ReporteControlador::class, "index"],
+    "verReportes"        => [ReporteControlador::class, "index"],
     "exportarPDF"     => [ReporteControlador::class, "exportarPDF"],
     "exportarExcel"   => [ReporteControlador::class, "exportarExcel"],
 
@@ -163,4 +193,4 @@ $rutas = [
 ];
 
 // 🚀 Ejecuta el enrutador
-Enrutador::resolver($accion, $rutas);
+Enrutador::resolver($accion, $rutas);   

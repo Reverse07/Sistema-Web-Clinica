@@ -2,11 +2,23 @@
 // =====================
 // 📊 Vista: Reportes Generales (Administrador)
 // =====================
-$totalPacientes    = $totalPacientes    ?? 0;
-$totalCitas        = $totalCitas        ?? 0;
-$totalFacturas     = $totalFacturas     ?? 0;
-$totalRecaudado    = $totalRecaudado    ?? 0;
-$facturasRecientes = $facturasRecientes ?? [];
+
+// 🔍 VALIDACIÓN Y VALORES POR DEFECTO
+$totalPacientes = isset($totalPacientes) ? (int)$totalPacientes : 0;
+$totalCitas = isset($totalCitas) ? (int)$totalCitas : 0;
+$totalFacturas = isset($totalFacturas) ? (int)$totalFacturas : 0;
+$totalRecaudado = isset($totalRecaudado) ? (float)$totalRecaudado : 0.0;
+$facturasRecientes = isset($facturasRecientes) && is_array($facturasRecientes) ? $facturasRecientes : [];
+$tendenciaMensual = isset($tendenciaMensual) && is_array($tendenciaMensual) ? $tendenciaMensual : ['meses' => [], 'montos' => []];
+$distribucionEstados = isset($distribucionEstados) && is_array($distribucionEstados) ? $distribucionEstados : ['Pagada' => 0, 'Pendiente' => 0, 'Cancelada' => 0];
+
+// 🔍 DEBUG TEMPORAL (eliminar después)
+error_log("🔍 VISTA REPORTES - Variables recibidas:");
+error_log("  - Pacientes: " . $totalPacientes . " (tipo: " . gettype($totalPacientes) . ")");
+error_log("  - Citas: " . $totalCitas . " (tipo: " . gettype($totalCitas) . ")");
+error_log("  - Facturas: " . $totalFacturas . " (tipo: " . gettype($totalFacturas) . ")");
+error_log("  - Recaudado: " . $totalRecaudado . " (tipo: " . gettype($totalRecaudado) . ")");
+error_log("  - Facturas Recientes: " . count($facturasRecientes) . " elementos");
 ?>
 
 <style>
@@ -393,9 +405,9 @@ $facturasRecientes = $facturasRecientes ?? [];
                                 <?php 
                                 $estado = strtolower($factura['estado']);
                                 $claseEstado = 'estado-badge ';
-                                if (str_contains($estado, 'pagada') || str_contains($estado, 'completada')) {
+                                if (str_contains($estado, 'pag') || str_contains($estado, 'complet')) {
                                     $claseEstado .= 'estado-pagada';
-                                } elseif (str_contains($estado, 'pendiente')) {
+                                } elseif (str_contains($estado, 'pend')) {
                                     $claseEstado .= 'estado-pendiente';
                                 } else {
                                     $claseEstado .= 'estado-cancelada';
@@ -418,21 +430,27 @@ $facturasRecientes = $facturasRecientes ?? [];
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // 📈 Gráfico de tendencia - DATOS REALES
+    console.log('🔍 Datos recibidos en JavaScript:');
+    console.log('Total Citas:', <?= $totalCitas ?>);
+    console.log('Total Facturas:', <?= $totalFacturas ?>);
+    console.log('Total Recaudado:', <?= $totalRecaudado ?>);
+    
+    // 📈 Gráfico de tendencia
     const ctxTendencia = document.getElementById('graficoTendencia');
     if (ctxTendencia) {
-        <?php 
-        $meses = $tendenciaMensual['meses'] ?? [];
-        $montos = $tendenciaMensual['montos'] ?? [];
-        ?>
+        const meses = <?= json_encode($tendenciaMensual['meses']) ?>;
+        const montos = <?= json_encode($tendenciaMensual['montos']) ?>;
+        
+        console.log('Meses:', meses);
+        console.log('Montos:', montos);
         
         new Chart(ctxTendencia, {
             type: 'line',
             data: {
-                labels: <?= json_encode($meses) ?>,
+                labels: meses,
                 datasets: [{
                     label: 'Ingresos Mensuales',
-                    data: <?= json_encode($montos) ?>,
+                    data: montos,
                     borderColor: '#667eea',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
                     tension: 0.4,
@@ -474,21 +492,21 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 🥧 Gráfico de estados - DATOS REALES
+    // 🥧 Gráfico de estados
     const ctxEstados = document.getElementById('graficoEstados');
     if (ctxEstados) {
-        <?php 
-        $pagadas = $distribucionEstados['Pagada'] ?? 0;
-        $pendientes = $distribucionEstados['Pendiente'] ?? 0;
-        $canceladas = $distribucionEstados['Cancelada'] ?? 0;
-        ?>
+        const pagadas = <?= $distribucionEstados['Pagada'] ?>;
+        const pendientes = <?= $distribucionEstados['Pendiente'] ?>;
+        const canceladas = <?= $distribucionEstados['Cancelada'] ?>;
+        
+        console.log('Estados - P:', pagadas, 'Pend:', pendientes, 'C:', canceladas);
         
         new Chart(ctxEstados, {
             type: 'doughnut',
             data: {
                 labels: ['Pagadas', 'Pendientes', 'Canceladas'],
                 datasets: [{
-                    data: [<?= $pagadas ?>, <?= $pendientes ?>, <?= $canceladas ?>],
+                    data: [pagadas, pendientes, canceladas],
                     backgroundColor: ['#27ae60', '#f39c12', '#e74c3c'],
                     borderWidth: 0,
                     hoverOffset: 15

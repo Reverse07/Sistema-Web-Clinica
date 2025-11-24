@@ -24,6 +24,22 @@ class AuthControlador
         require __DIR__ . "/../vistas/auth/login.php";
     }
 
+    /**
+ * Muestra la página de Términos y Condiciones
+ */
+public function terminos()
+{
+    require __DIR__ . "/../vistas/terminos.php";
+}
+
+/**
+ * Muestra la página de Política de Privacidad
+ */
+public function privacidad()
+{
+    require __DIR__ . "/../vistas/privacidad.php";
+}
+
     // =====================
     // 📌 Procesar Login
     // =====================

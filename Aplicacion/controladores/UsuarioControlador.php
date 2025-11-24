@@ -4,13 +4,6 @@ require_once __DIR__ . "/../../nucleo/BaseDatos.php";
 require_once __DIR__ . "/../modelos/Usuario.php";
 require_once __DIR__ . "/../modelos/Doctor.php";
 
-/**
- * UsuarioControlador
- * 
- * Responsabilidad: Gestión genérica de usuarios
- * - CRUD de usuarios desde admin (cualquier rol)
- * - Gestión de perfil propio (cualquier usuario logueado)
- */
 class UsuarioControlador
 {
     /**

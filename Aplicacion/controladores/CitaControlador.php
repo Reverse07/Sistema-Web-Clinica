@@ -168,19 +168,64 @@ class CitaControlador
         
         return (int) $stmt->fetchColumn();
     }
-
     /**
-     * Formulario para crear cita (Admin)
+     * Muestra formulario para crear nueva cita (Admin)
      */
+
     public function crear()
     {
         Autenticacion::requiereRoles(['admin', 'doctor']);
         
-        $pacientes = Paciente::todos();
-        $doctores = Doctor::todos();
+        // Obtener pacientes con datos de usuario
+        $pacientes = $this->obtenerPacientesConDatos();
+        
+        // Obtener doctores con datos de usuario
+        $doctores = $this->obtenerDoctoresConDatos();
 
         $vistaInterna = __DIR__ . "/../vistas/admin/crearCita.php";
         require __DIR__ . "/../../includes/layout-admin.php";
+    }
+
+    private function obtenerPacientesConDatos(): array
+    {
+        $pdo = BaseDatos::pdo();
+        
+        $sql = "
+            SELECT 
+                p.id,
+                u.nombre,
+                u.email,
+                u.telefono
+            FROM pacientes p
+            INNER JOIN usuarios u ON p.usuario_id = u.id
+            ORDER BY u.nombre ASC
+        ";
+        
+        $stmt = $pdo->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtiene lista de doctores con datos de usuario y especialidad
+     */
+    private function obtenerDoctoresConDatos(): array
+    {
+        $pdo = BaseDatos::pdo();
+        
+        $sql = "
+            SELECT 
+                d.id,
+                u.nombre,
+                u.email,
+                e.nombre as especialidad
+            FROM doctores d
+            INNER JOIN usuarios u ON d.usuario_id = u.id
+            LEFT JOIN especialidades e ON d.especialidad_id = e.id
+            ORDER BY u.nombre ASC
+        ";
+        
+        $stmt = $pdo->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /**
@@ -214,7 +259,7 @@ class CitaControlador
         $this->redirigir('gestionarCitas');
     }
 
-    /**
+     /**
      * Muestra formulario de edición
      */
     public function editar()
@@ -233,12 +278,13 @@ class CitaControlador
             $this->redirigir('gestionarCitas');
         }
 
-        $pacientes = Paciente::todos();
-        $doctores = Doctor::todos();
+        // Obtener pacientes y doctores con datos completos
+        $pacientes = $this->obtenerPacientesConDatos();
+        $doctores = $this->obtenerDoctoresConDatos();
 
         $vistaInterna = __DIR__ . "/../vistas/admin/editarCita.php";
         require __DIR__ . "/../../includes/layout-admin.php";
-    }
+    }   
 
     /**
      * Alias para compatibilidad

@@ -228,12 +228,33 @@ class Factura
         return (float)($stmt->fetchColumn() ?: 0);
     }
 
-    public static function obtenerUltimas($limite = 10)
-    {
+   public static function obtenerUltimas($limite = 10): array
+{
+    try {
         $db = BaseDatos::pdo();
-        $stmt = $db->prepare("SELECT * FROM facturas ORDER BY emitida_en DESC LIMIT ?");
-        $stmt->bindValue(1, (int)$limite, PDO::PARAM_INT);
+        
+        $sql = "
+            SELECT 
+                f.id,
+                f.monto,
+                f.estado,
+                f.emitida_en::date as fecha_emision,
+                COALESCE(u.nombre, 'Sin paciente') as paciente
+            FROM facturas f
+            LEFT JOIN pacientes p ON f.paciente_id = p.id
+            LEFT JOIN usuarios u ON p.usuario_id = u.id
+            ORDER BY f.emitida_en DESC
+            LIMIT :limite
+        ";
+        
+        $stmt = $db->prepare($sql);
+        $stmt->bindValue(':limite', (int)$limite, PDO::PARAM_INT);
         $stmt->execute();
+        
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error obtenerUltimas: " . $e->getMessage());
+        return [];
     }
+}
 }

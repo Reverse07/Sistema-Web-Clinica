@@ -148,10 +148,70 @@ class Paciente
         }
     }
 
-    public static function contarPacientes() {
-    $db = BaseDatos::pdo();
-    $stmt = $db->query("SELECT COUNT(*) FROM pacientes");
-    return $stmt->fetchColumn();
+ public static function contarPacientes(): int
+{
+    try {
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->query("SELECT COUNT(*) FROM pacientes");
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Error contarPacientes: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Busca un paciente por su ID
+ * @param int $id
+ * @return Paciente|null
+ */
+public static function buscarPorId(int $id): ?Paciente
+{
+    $pdo = BaseDatos::pdo();
+    
+    $sql = "
+        SELECT 
+            p.id,
+            p.usuario_id,
+            p.fecha_nacimiento,
+            p.direccion,
+            p.historial_medico,
+            u.nombre,
+            u.email,
+            u.telefono,
+            u.rol
+        FROM pacientes p
+        INNER JOIN usuarios u ON p.usuario_id = u.id
+        WHERE p.id = :id
+        LIMIT 1
+    ";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':id' => $id]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$row) {
+        return null;
+    }
+    
+    // Crear objeto Usuario
+    $usuario = new Usuario(
+        $row['usuario_id'],
+        $row['nombre'],
+        $row['email'],
+        '', // password no es necesario aquí
+        $row['rol'],
+        $row['telefono']
+    );
+    
+    // Crear objeto Paciente
+    return new Paciente(
+        $row['id'],
+        $usuario,
+        $row['fecha_nacimiento'],
+        $row['direccion'],
+        $row['historial_medico']
+    );
 }
 
 }

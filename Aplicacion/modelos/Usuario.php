@@ -2,12 +2,7 @@
 // 📦 Importa la clase BaseDatos para acceder a la conexión PDO
 require_once __DIR__ . "/../../nucleo/BaseDatos.php";
 
-/**
- * Clase Usuario
- * 
- * Representa a un usuario en el sistema.
- * Proporciona métodos CRUD y utilidades para autenticación y gestión de roles.
- */
+
 class Usuario
 {
     // =====================

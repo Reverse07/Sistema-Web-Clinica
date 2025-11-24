@@ -125,10 +125,18 @@ class Cita
         return $resultados;
     }
 
-    public static function contarCitas() {
-    $pdo = BaseDatos::pdo();
-    $stmt = $pdo->query("SELECT COUNT(*) FROM citas");
-    return $stmt->fetchColumn();
+/**
+ * 📊 Cuenta el total de citas
+ */
+public static function contarCitas(): int
+{
+    try {
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->query("SELECT COUNT(*) FROM citas");
+        return (int) $stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Error contarCitas: " . $e->getMessage());
+        return 0;
+    }
 }
-
 }

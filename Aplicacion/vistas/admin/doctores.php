@@ -41,11 +41,12 @@
                                 ✏️ Editar
                             </a>
                             <a href="<?= BASE_URL ?>/index.php?accion=eliminarDoctor&id=<?= $doctor['usuario_id'] ?? $doctor['id'] ?>" 
-                               class="btn-eliminar" 
-                               title="Eliminar doctor"
-                               onclick="return confirm('¿Está seguro de eliminar este doctor?')">
-                                🗑️ Eliminar
-                            </a>
+   class="btn-eliminar swal-eliminar-doctor" 
+   data-id="<?= $doctor['usuario_id'] ?? $doctor['id'] ?>"
+   title="Eliminar doctor">
+    🗑️ Eliminar
+</a>
+
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -53,3 +54,32 @@
         </table>
     <?php endif; ?>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+// SweetAlert para eliminar un doctor
+document.querySelectorAll('.swal-eliminar-doctor').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+
+        const doctorId = this.getAttribute('data-id');
+        const url = `<?= BASE_URL ?>/index.php?accion=eliminarDoctor&id=${doctorId}`;
+
+        Swal.fire({
+            title: "¿Eliminar doctor?",
+            text: "Esta acción no se puede deshacer.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonText: "Sí, eliminar",
+            cancelButtonText: "Cancelar",
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6"
+        }).then(result => {
+            if (result.isConfirmed) {
+                window.location.href = url;
+            }
+        });
+    });
+});
+</script>

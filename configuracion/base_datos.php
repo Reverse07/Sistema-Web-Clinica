@@ -1,12 +1,33 @@
 <?php
-// 🧭 Dirección del servidor de base de datos (localhost si está en la misma máquina)
-define("DB_HOST", "localhost");
+// =====================================================
+// 🗄️ CONFIGURACIÓN DE BASE DE DATOS - POSTGRESQL
+// =====================================================
 
-// 🗃️ Nombre de la base de datos que usará el sistema clínico
-define("DB_NAME", "sistema_clinica");
+// Solo definir si no están definidas (evitar duplicados)
+if (!defined('DB_HOST')) {
+    define('DB_HOST', 'localhost');
+}
 
-// 👤 Usuario con permisos para acceder a la base de datos
-define("DB_USER", "postgres");
+if (!defined('DB_PORT')) {
+    define('DB_PORT', '5432');
+}
 
-// 🔐 Contraseña del usuario de la base de datos
-define("DB_PASS", "Nomeacuerdo2006");
+if (!defined('DB_NAME')) {
+    define('DB_NAME', 'sistema_clinica');
+}
+
+if (!defined('DB_USER')) {
+    define('DB_USER', 'postgres');
+}
+
+if (!defined('DB_PASS')) {
+    define('DB_PASS', 'Nomeacuerdo2006');
+}
+
+if (!defined('DB_CHARSET')) {
+    define('DB_CHARSET', 'utf8');
+}
+
+if (!defined('DB_TYPE')) {
+    define('DB_TYPE', 'pgsql');
+}
