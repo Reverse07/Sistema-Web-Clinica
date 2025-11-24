@@ -19,7 +19,7 @@ if (APP_ENV === 'dev') {
 }
 
 // 🌐 URL base del proyecto
-define('BASE_URL', '/Sistema-Web-Clinica/publico');
+define('BASE_URL', '/Clinica/publico');
 
 // 📁 Rutas absolutas del sistema
 define('RUTA_PUBLICO', __DIR__ . '/../publico');

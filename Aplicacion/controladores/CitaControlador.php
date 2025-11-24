@@ -54,43 +54,107 @@ class CitaControlador
      */
     public function crearCitaPaciente()
     {
-        Autenticacion::requiereRoles(['paciente']);
-        $doctores = Doctor::todos();
+         Autenticacion::requiereRoles(['paciente']);
+    
+    // Obtener doctores con datos completos (nombre, especialidad, email)
+    $doctores = $this->obtenerDoctoresDisponibles();
 
-        $vistaInterna = __DIR__ . "/../vistas/paciente/crearCita.php";
-        require __DIR__ . "/../../includes/layout-paciente.php";
+    $vistaInterna = __DIR__ . "/../vistas/paciente/crearCita.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
+
+/**
+ * Obtiene lista de doctores disponibles con sus datos completos
+ */
+private function obtenerDoctoresDisponibles(): array
+{
+    try {
+        $pdo = BaseDatos::pdo();
+        
+        $sql = "
+            SELECT 
+                d.id,
+                u.nombre,
+                u.email,
+                u.telefono,
+                e.nombre as especialidad,
+                d.numero_colegiatura
+            FROM doctores d
+            INNER JOIN usuarios u ON d.usuario_id = u.id
+            LEFT JOIN especialidades e ON d.especialidad_id = e.id
+            WHERE u.rol_id = 2
+            ORDER BY u.nombre ASC
+        ";
+        
+        $stmt = $pdo->query($sql);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (Exception $e) {
+        error_log("❌ Error obteniendo doctores disponibles: " . $e->getMessage());
+        return [];
     }
+ }
 
     /**
      * Guarda nueva cita creada por paciente
      */
     public function guardarCitaPaciente()
     {
-        Autenticacion::requiereRoles(['paciente']);
+       Autenticacion::requiereRoles(['paciente']);
 
-        if (empty($_POST['doctor_id']) || empty($_POST['fecha'])) {
-            $this->setMensaje('error', 'Todos los campos son obligatorios');
-            $this->redirigir('crearCitaPaciente');
-        }
-
-        try {
-            $cita = new Cita(
-                null,
-                Autenticacion::usuarioId(),
-                $_POST['doctor_id'],
-                $_POST['fecha'],
-                'Pendiente'
-            );
-            $cita->crear();
-
-            $this->setMensaje('exito', 'Cita creada correctamente ✅');
-        } catch (Exception $e) {
-            error_log("Error al crear cita: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al crear cita. Intente nuevamente.');
-        }
-
-        $this->redirigir('misCitas');
+    if (empty($_POST['doctor_id']) || empty($_POST['fecha'])) {
+        $this->setMensaje('error', 'Todos los campos son obligatorios');
+        $this->redirigir('crearCitaPaciente');
     }
+
+    try {
+        $usuarioId = Autenticacion::usuarioId();
+        
+        // Obtener el ID del paciente desde la tabla pacientes
+        $pacienteId = $this->obtenerPacienteId($usuarioId);
+        
+        if (!$pacienteId) {
+            throw new Exception('No se encontró el registro de paciente');
+        }
+
+        $cita = new Cita(
+            null,
+            $pacienteId,  // Usar el ID de la tabla pacientes
+            $_POST['doctor_id'],
+            $_POST['fecha'],
+            'Pendiente'
+        );
+        $cita->crear();
+
+        $this->setMensaje('exito', 'Cita creada correctamente ✅');
+    } catch (Exception $e) {
+        error_log("❌ Error al crear cita: " . $e->getMessage());
+        $this->setMensaje('error', 'Error al crear cita. Intente nuevamente.');
+    }
+
+    $this->redirigir('misCitas');
+    }
+
+    /**
+ * Obtiene el ID del paciente desde el usuario_id
+ */
+private function obtenerPacienteId(int $usuarioId): ?int
+{
+    try {
+        $pdo = BaseDatos::pdo();
+        $sql = "SELECT id FROM pacientes WHERE usuario_id = :usuario_id";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':usuario_id' => $usuarioId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? (int)$result['id'] : null;
+    } catch (Exception $e) {
+        error_log("❌ Error en obtenerPacienteId: " . $e->getMessage());
+        return null;
+    }
+}
+
 
     // ===========================================================
     // 🩺 GESTIÓN ADMIN / DOCTOR

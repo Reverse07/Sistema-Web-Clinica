@@ -11,7 +11,7 @@ require_once __DIR__ . "/../nucleo/Autenticacion.php";
 require_once __DIR__ . "/../nucleo/Enrutador.php";
 require_once __DIR__ . "/../nucleo/BaseDatos.php";
 
-// ✅ RUTA CORREGIDA: vendor/ está un nivel arriba de publico/
+// ✅ Composer Autoload
 require_once __DIR__ . '/../vendor/autoload.php';
 
 // 🔹 Controladores principales
@@ -31,30 +31,30 @@ require_once __DIR__ . "/../Aplicacion/controladores/ConfiguracionControlador.ph
 // 🚦 Enrutamiento
 // =====================
 
-// 🔍 Detecta acción desde la URL (?accion=login, ?accion=dashboardAdmin, etc.)
+// 🔍 Detecta acción desde la URL
 $accion = $_GET['accion'] ?? (Autenticacion::usuarioId() ? 'dashboardAdmin' : 'loginVista');
 
 // 📦 Mapa de rutas disponibles
 $rutas = [
     // ========================================
-// 🔐 AUTENTICACIÓN
-// ========================================
-"loginVista"    => [AuthControlador::class, "loginVista"],
-"login"         => [AuthControlador::class, "login"],
-"registroVista" => [AuthControlador::class, "registroVista"],
-"registro"      => [AuthControlador::class, "registro"],
-"logout"        => [AuthControlador::class, "logout"],
-"terminos"      => [AuthControlador::class, "terminos"],
-"privacidad"    => [AuthControlador::class, "privacidad"],  // ✅ AGREGAR ESTA LÍNEA
+    // 🔐 AUTENTICACIÓN
+    // ========================================
+    "loginVista"    => [AuthControlador::class, "loginVista"],
+    "login"         => [AuthControlador::class, "login"],
+    "registroVista" => [AuthControlador::class, "registroVista"],
+    "registro"      => [AuthControlador::class, "registro"],
+    "logout"        => [AuthControlador::class, "logout"],
+    "terminos"      => [AuthControlador::class, "terminos"],
+    "privacidad"    => [AuthControlador::class, "privacidad"],
 
     // ========================================
     // 👨‍💼 ADMINISTRADOR - Dashboard y Generales
     // ========================================
     "dashboardAdmin"     => [AdminControlador::class, "dashboard"],
     "adminDashboard"     => [AdminControlador::class, "dashboard"],
-    "verReportes"        => [AdminControlador::class, "verReportes"],
-    "adminReportes"      => [AdminControlador::class, "verReportes"],
-    "contacto"           => [AdminControlador::class, "contacto"],          // ✅ NUEVA
+    "verReportes"        => [ReporteControlador::class, "index"],
+    "adminReportes"      => [ReporteControlador::class, "index"],
+    "contacto"           => [AdminControlador::class, "contacto"],
     "enviarContacto"     => [AdminControlador::class, "enviarContacto"],
 
     // ========================================
@@ -91,11 +91,20 @@ $rutas = [
     // ========================================
     // 🧑‍🤝‍🧑 PACIENTES - Vistas del rol paciente
     // ========================================
-    "pacienteDashboard" => [PacienteControlador::class, "dashboard"],
-    "pacientePerfil"    => [PacienteControlador::class, "perfil"],
-    "pacienteCitas"     => [PacienteControlador::class, "misCitas"],
-    "pacienteHistorial" => [PacienteControlador::class, "miHistorial"],
-    "pacienteFacturas"  => [PacienteControlador::class, "misFacturas"],
+    "pacienteDashboard"     => [PacienteControlador::class, "dashboard"],
+    "dashboardPaciente"     => [PacienteControlador::class, "dashboard"], // Alias
+    "pacientePerfil"        => [PacienteControlador::class, "perfil"],
+    "perfilPaciente"        => [PacienteControlador::class, "perfil"], // Alias
+    "pacienteCitas"         => [PacienteControlador::class, "misCitas"],
+    "misCitas"              => [PacienteControlador::class, "misCitas"], // Alias
+    "pacienteHistorial"     => [PacienteControlador::class, "miHistorial"],
+    "miHistorial"           => [PacienteControlador::class, "miHistorial"], // Alias
+    "historialMedico"       => [PacienteControlador::class, "miHistorial"], // Alias
+    "pacienteFacturas"      => [PacienteControlador::class, "misFacturas"],
+    "misFacturas"           => [PacienteControlador::class, "misFacturas"], // Alias
+    "misRecetas"            => [PacienteControlador::class, "misFacturas"], // Temporal (crear método después)
+    "crearCitaPaciente"     => [CitaControlador::class, "crearCitaPaciente"], // Para pacientes
+    "guardarCitaPaciente"   => [CitaControlador::class, "guardarCitaPaciente"], // Para pacientes
 
     // 🧑‍🤝‍🧑 PACIENTES - Gestión desde admin
     "gestionarPacientes" => [PacienteControlador::class, "gestionarPacientes"],
@@ -120,38 +129,38 @@ $rutas = [
     "cambiarPassword"    => [UsuarioControlador::class, "cambiarPassword"],
 
     // ========================================
-// 📅 CITAS
-// ========================================
-// Vista principal
-"gestionarCitas"  => [CitaControlador::class, "gestionar"],
-"citas"           => [CitaControlador::class, "gestionar"],
+    // 📅 CITAS
+    // ========================================
+    // Vista principal
+    "gestionarCitas"  => [CitaControlador::class, "gestionar"],
+    "citas"           => [CitaControlador::class, "gestionar"],
 
-// Crear
-"crearCita"       => [CitaControlador::class, "crear"],
-"crear"           => [CitaControlador::class, "crear"],
+    // Crear (Admin/Doctor)
+    "crearCita"       => [CitaControlador::class, "crear"],
+    "crear"           => [CitaControlador::class, "crear"],
 
-// Guardar
-"guardarCita"     => [CitaControlador::class, "guardar"],
-"guardar"         => [CitaControlador::class, "guardar"],
+    // Guardar (Admin/Doctor)
+    "guardarCita"     => [CitaControlador::class, "guardar"],
+    "guardar"         => [CitaControlador::class, "guardar"],
 
-// Editar
-"editarCita"      => [CitaControlador::class, "editar"],
-"editar"          => [CitaControlador::class, "editar"], // ✅ Usado en la tabla
+    // Editar
+    "editarCita"      => [CitaControlador::class, "editar"],
+    "editar"          => [CitaControlador::class, "editar"],
 
-// Actualizar
-"actualizarCita"  => [CitaControlador::class, "actualizar"],
-"actualizar"      => [CitaControlador::class, "actualizar"],
+    // Actualizar
+    "actualizarCita"  => [CitaControlador::class, "actualizar"],
+    "actualizar"      => [CitaControlador::class, "actualizar"],
 
-// Confirmar
-"confirmarCita"   => [CitaControlador::class, "confirmar"],
-"confirmar"       => [CitaControlador::class, "confirmar"], // ✅ Usado en la tabla
+    // Confirmar
+    "confirmarCita"   => [CitaControlador::class, "confirmar"],
+    "confirmar"       => [CitaControlador::class, "confirmar"],
 
-// Cancelar
-"cancelarCita"    => [CitaControlador::class, "cancelar"],
-"cancelar"        => [CitaControlador::class, "cancelar"], // ✅ Usado en la tabla
+    // Cancelar
+    "cancelarCita"    => [CitaControlador::class, "cancelar"],
+    "cancelar"        => [CitaControlador::class, "cancelar"],
 
-// Eliminar
-"eliminarCita"    => [CitaControlador::class, "eliminarCita"],
+    // Eliminar
+    "eliminarCita"    => [CitaControlador::class, "eliminarCita"],
 
     // ========================================
     // 💳 FACTURAS
@@ -178,9 +187,9 @@ $rutas = [
     // ========================================
     // 📊 REPORTES
     // ========================================
-    "verReportes"        => [ReporteControlador::class, "index"],
-    "exportarPDF"     => [ReporteControlador::class, "exportarPDF"],
-    "exportarExcel"   => [ReporteControlador::class, "exportarExcel"],
+    "reportes"       => [ReporteControlador::class, "index"],
+    "exportarPDF"    => [ReporteControlador::class, "exportarPDF"],
+    "exportarExcel"  => [ReporteControlador::class, "exportarExcel"],
 
     // ========================================
     // 💊 RECETAS
@@ -193,4 +202,4 @@ $rutas = [
 ];
 
 // 🚀 Ejecuta el enrutador
-Enrutador::resolver($accion, $rutas);   
+Enrutador::resolver($accion, $rutas);

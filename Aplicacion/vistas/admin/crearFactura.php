@@ -426,13 +426,15 @@ $citas = $citas ?? [];
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 // Filtrar citas según el paciente seleccionado
 document.getElementById('paciente_id')?.addEventListener('change', function() {
     const pacienteId = this.value;
     const citaSelect = document.getElementById('cita_id');
     const opciones = citaSelect.querySelectorAll('option');
-    
+
     opciones.forEach(opcion => {
         if (opcion.value === '') {
             opcion.style.display = 'block';
@@ -440,54 +442,81 @@ document.getElementById('paciente_id')?.addEventListener('change', function() {
         }
         
         const citaPacienteId = opcion.getAttribute('data-paciente');
-        if (!pacienteId || citaPacienteId === pacienteId) {
-            opcion.style.display = 'block';
-        } else {
-            opcion.style.display = 'none';
-        }
+        opcion.style.display = (!pacienteId || citaPacienteId === pacienteId) ? 'block' : 'none';
     });
     
-    // Resetear selección de cita si no corresponde al paciente
     citaSelect.value = '';
 });
 
 // Auto-completar paciente cuando se selecciona una cita
 document.getElementById('cita_id')?.addEventListener('change', function() {
-    const selectedOption = this.options[this.selectedIndex];
-    const citaPacienteId = selectedOption.getAttribute('data-paciente');
-    
-    if (citaPacienteId) {
-        const pacienteSelect = document.getElementById('paciente_id');
-        pacienteSelect.value = citaPacienteId;
-    }
+    const selected = this.options[this.selectedIndex];
+    const citaPacienteId = selected.getAttribute('data-paciente');
+    if (citaPacienteId) document.getElementById('paciente_id').value = citaPacienteId;
 });
 
-// Validación del formulario antes de enviar
+// Validación + SweetAlert
 document.getElementById('formFactura')?.addEventListener('submit', function(e) {
-    const monto = parseFloat(document.getElementById('monto').value);
+    e.preventDefault(); // detener envío para usar SweetAlert
     
-    if (monto <= 0) {
-        e.preventDefault();
-        alert('⚠️ El monto debe ser mayor a 0');
-        return false;
+    const montoInput = document.getElementById('monto');
+    const monto = parseFloat(montoInput.value);
+
+    // Validación monto <= 0
+    if (monto <= 0 || isNaN(monto)) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Monto inválido',
+            text: 'El monto debe ser mayor a 0.',
+            confirmButtonColor: '#667eea'
+        });
+        return;
     }
-    
+
+    // Si monto > 10,000 mostrar alerta previa
     if (monto > 10000) {
-        if (!confirm('⚠️ El monto es mayor a S/ 10,000. ¿Está seguro de continuar?')) {
-            e.preventDefault();
-            return false;
-        }
+        Swal.fire({
+            icon: 'warning',
+            title: 'Monto elevado',
+            text: 'El monto es mayor a S/ 10,000. ¿Desea continuar?',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, continuar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#667eea',
+            cancelButtonColor: '#aaa'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                confirmarEnvio();
+            }
+        });
+        return;
     }
-    
-    // Confirmación final
-    return confirm('✅ ¿Confirma que desea crear esta factura?');
+
+    // Confirmación normal
+    confirmarEnvio();
 });
 
-// Formatear el input de monto mientras se escribe
+// Función final para confirmar creación
+function confirmarEnvio() {
+    Swal.fire({
+        icon: 'question',
+        title: '¿Crear factura?',
+        text: 'Se registrará la nueva factura con los datos ingresados.',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, guardar',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#667eea',
+        cancelButtonColor: '#aaa'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('formFactura').submit();
+        }
+    });
+}
+
+// Formatear monto
 document.getElementById('monto')?.addEventListener('blur', function() {
-    const valor = parseFloat(this.value);
-    if (!isNaN(valor)) {
-        this.value = valor.toFixed(2);
-    }
+    const v = parseFloat(this.value);
+    if (!isNaN(v)) this.value = v.toFixed(2);
 });
 </script>

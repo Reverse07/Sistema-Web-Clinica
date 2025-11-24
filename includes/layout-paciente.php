@@ -11,7 +11,6 @@ require_once __DIR__ . "/../includes/encabezado.php";
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- 🎨 Estilos base y específicos -->
-    <link rel="stylesheet" href="<?= BASE_URL ?>/recursos/css/app.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/recursos/css/panel.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 </head>

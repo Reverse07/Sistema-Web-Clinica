@@ -3,6 +3,8 @@ require_once __DIR__ . "/../../nucleo/Autenticacion.php";
 require_once __DIR__ . "/../../nucleo/BaseDatos.php";
 require_once __DIR__ . "/../modelos/Usuario.php";
 require_once __DIR__ . "/../modelos/Paciente.php";
+require_once __DIR__ . "/../modelos/Cita.php";
+require_once __DIR__ . "/../modelos/Factura.php";
 
 /**
  * PacienteControlador
@@ -36,58 +38,434 @@ class PacienteControlador
     // ========================================
 
     /**
-     * Dashboard del paciente logueado
+     * 🏠 Dashboard del paciente logueado (MEJORADO)
      */
     public function dashboard()
     {
         Autenticacion::requiereRoles(['paciente']);
         
-        $vistaInterna = __DIR__ . "/../vistas/paciente/inicio.php";
-        require __DIR__ . "/../../includes/layout-paciente.php";
+        try {
+            $pdo = BaseDatos::pdo();
+            $usuarioId = Autenticacion::usuarioId();
+            
+            // Obtener ID del paciente
+            $pacienteId = $this->obtenerPacienteId($usuarioId);
+            
+            if (!$pacienteId) {
+                throw new Exception('No se encontró el registro de paciente');
+            }
+            
+            // Estadísticas para el dashboard
+            $totalCitas = $this->contarCitasPaciente($pacienteId);
+            $citasPendientes = $this->contarCitasPorEstado($pacienteId, 'Pendiente');
+            $citasCompletadas = $this->contarCitasPorEstado($pacienteId, 'Confirmada');
+            $facturasPorPagar = $this->contarFacturasPendientes($pacienteId);
+            
+            // Próximas citas (5 más próximas)
+            $proximasCitas = $this->obtenerProximasCitas($pacienteId, 5);
+            
+            // Historial de citas (últimas 10)
+            $historialCitas = $this->obtenerHistorialCitas($pacienteId, 10);
+            
+            // Facturas pendientes
+            $facturasPendientes = $this->obtenerFacturasPendientes($pacienteId);
+            
+            // Cargar vista del dashboard premium
+            $vistaInterna = __DIR__ . "/../vistas/paciente/inicio.php";
+            require __DIR__ . "/../../includes/layout-paciente.php";
+            
+        } catch (Exception $e) {
+            error_log("❌ Error en PacienteControlador::dashboard: " . $e->getMessage());
+            $this->setMensaje('error', 'Error al cargar el dashboard');
+            $this->redirigir('loginVista');
+        }
     }
 
     /**
-     * Perfil del paciente logueado
+     * 👤 Perfil del paciente logueado
      */
     public function perfil()
     {
         Autenticacion::requiereRoles(['paciente']);
         
-        $vistaInterna = __DIR__ . "/../vistas/paciente/perfil.php";
-        require __DIR__ . "/../../includes/layout-paciente.php";
+        try {
+            $usuarioId = Autenticacion::usuarioId();
+            $paciente = $this->obtenerDatosPaciente($usuarioId);
+            
+            $vistaInterna = __DIR__ . "/../vistas/paciente/perfil.php";
+            require __DIR__ . "/../../includes/layout-paciente.php";
+            
+        } catch (Exception $e) {
+            error_log("❌ Error en perfil: " . $e->getMessage());
+            $this->setMensaje('error', 'Error al cargar el perfil');
+            $this->redirigir('dashboardPaciente');
+        }
     }
 
     /**
-     * Citas del paciente logueado
+     * 📅 Citas del paciente logueado
      */
     public function misCitas()
     {
         Autenticacion::requiereRoles(['paciente']);
         
-        $vistaInterna = __DIR__ . "/../vistas/paciente/citas.php";
-        require __DIR__ . "/../../includes/layout-paciente.php";
+        try {
+            $usuarioId = Autenticacion::usuarioId();
+            $pacienteId = $this->obtenerPacienteId($usuarioId);
+            
+            // Obtener todas las citas del paciente
+            $citas = $this->obtenerTodasLasCitasConDatos($pacienteId);
+            
+            // Estadísticas para la vista
+            $totalCitas = count($citas);
+            $citasPendientes = 0;
+            $citasConfirmadas = 0;
+            $citasCanceladas = 0;
+            
+            foreach ($citas as $cita) {
+                $estado = strtolower($cita['estado']);
+                if (str_contains($estado, 'pendiente')) {
+                    $citasPendientes++;
+                } elseif (str_contains($estado, 'confirmada')) {
+                    $citasConfirmadas++;
+                } elseif (str_contains($estado, 'cancelada')) {
+                    $citasCanceladas++;
+                }
+            }
+            
+            $vistaInterna = __DIR__ . "/../vistas/paciente/citas.php";
+            require __DIR__ . "/../../includes/layout-paciente.php";
+            
+        } catch (Exception $e) {
+            error_log("❌ Error en misCitas: " . $e->getMessage());
+            $this->setMensaje('error', 'Error al cargar las citas');
+            $this->redirigir('dashboardPaciente');
+        }
     }
 
     /**
-     * Historial médico del paciente
+     * 📁 Historial médico del paciente
      */
     public function miHistorial()
     {
         Autenticacion::requiereRoles(['paciente']);
         
-        $vistaInterna = __DIR__ . "/../vistas/paciente/historial.php";
-        require __DIR__ . "/../../includes/layout-paciente.php";
+        try {
+            $usuarioId = Autenticacion::usuarioId();
+            $pacienteId = $this->obtenerPacienteId($usuarioId);
+            
+            $historial = $this->obtenerHistorialCompleto($pacienteId);
+            
+            $vistaInterna = __DIR__ . "/../vistas/paciente/historial.php";
+            require __DIR__ . "/../../includes/layout-paciente.php";
+            
+        } catch (Exception $e) {
+            error_log("❌ Error en miHistorial: " . $e->getMessage());
+            $this->setMensaje('error', 'Error al cargar el historial');
+            $this->redirigir('dashboardPaciente');
+        }
     }
 
     /**
-     * Facturas del paciente
+     * 💳 Facturas del paciente
      */
     public function misFacturas()
     {
         Autenticacion::requiereRoles(['paciente']);
         
-        $vistaInterna = __DIR__ . "/../vistas/paciente/facturas.php";
-        require __DIR__ . "/../../includes/layout-paciente.php";
+        try {
+            $usuarioId = Autenticacion::usuarioId();
+            $pacienteId = $this->obtenerPacienteId($usuarioId);
+            
+            $facturas = Factura::obtenerPorPaciente($pacienteId);
+            
+            // Estadísticas
+            $totalFacturas = count($facturas);
+            $totalPagado = 0;
+            $totalPendiente = 0;
+            
+            foreach ($facturas as $factura) {
+                if (str_contains(strtolower($factura->getEstado()), 'pag')) {
+                    $totalPagado += $factura->getMonto();
+                } else {
+                    $totalPendiente += $factura->getMonto();
+                }
+            }
+            
+            $vistaInterna = __DIR__ . "/../vistas/paciente/facturas.php";
+            require __DIR__ . "/../../includes/layout-paciente.php";
+            
+        } catch (Exception $e) {
+            error_log("❌ Error en misFacturas: " . $e->getMessage());
+            $this->setMensaje('error', 'Error al cargar las facturas');
+            $this->redirigir('dashboardPaciente');
+        }
+    }
+
+    // ========================================
+    // MÉTODOS AUXILIARES PRIVADOS
+    // ========================================
+
+    /**
+     * Obtiene el ID del paciente desde el usuario_id
+     */
+    private function obtenerPacienteId(int $usuarioId): ?int
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "SELECT id FROM pacientes WHERE usuario_id = :usuario_id";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':usuario_id' => $usuarioId]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $result ? (int)$result['id'] : null;
+        } catch (Exception $e) {
+            error_log("❌ Error en obtenerPacienteId: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Cuenta total de citas del paciente
+     */
+    private function contarCitasPaciente(int $pacienteId): int
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "SELECT COUNT(*) FROM citas WHERE paciente_id = :paciente_id";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':paciente_id' => $pacienteId]);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log("❌ Error contando citas: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Cuenta citas por estado
+     */
+    private function contarCitasPorEstado(int $pacienteId, string $estado): int
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "SELECT COUNT(*) FROM citas 
+                    WHERE paciente_id = :paciente_id 
+                    AND LOWER(estado) LIKE LOWER(:estado)";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([
+                ':paciente_id' => $pacienteId,
+                ':estado' => "%$estado%"
+            ]);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log("❌ Error contando por estado: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Cuenta facturas pendientes
+     */
+    private function contarFacturasPendientes(int $pacienteId): int
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "SELECT COUNT(*) FROM facturas 
+                    WHERE paciente_id = :paciente_id 
+                    AND LOWER(estado) IN ('pendiente', 'por pagar')";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':paciente_id' => $pacienteId]);
+            return (int)$stmt->fetchColumn();
+        } catch (Exception $e) {
+            error_log("❌ Error contando facturas pendientes: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Obtiene próximas citas del paciente
+     */
+    private function obtenerProximasCitas(int $pacienteId, int $limite = 5): array
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "
+                SELECT 
+                    c.id,
+                    c.fecha,
+                    c.estado,
+                    u.nombre as doctor_nombre,
+                    e.nombre as especialidad,
+                    '1' as consultorio
+                FROM citas c
+                LEFT JOIN doctores d ON c.doctor_id = d.id
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
+                LEFT JOIN especialidades e ON d.especialidad_id = e.id
+                WHERE c.paciente_id = :paciente_id
+                AND c.fecha >= CURRENT_DATE
+                AND LOWER(c.estado) NOT IN ('cancelada', 'cancelado')
+                ORDER BY c.fecha ASC
+                LIMIT :limite
+            ";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindValue(':paciente_id', $pacienteId, PDO::PARAM_INT);
+            $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log("❌ Error obteniendo próximas citas: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene historial de citas
+     */
+    private function obtenerHistorialCitas(int $pacienteId, int $limite = 10): array
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "
+                SELECT 
+                    c.id,
+                    c.fecha,
+                    c.estado,
+                    u.nombre as doctor_nombre,
+                    e.nombre as especialidad
+                FROM citas c
+                LEFT JOIN doctores d ON c.doctor_id = d.id
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
+                LEFT JOIN especialidades e ON d.especialidad_id = e.id
+                WHERE c.paciente_id = :paciente_id
+                ORDER BY c.fecha DESC
+                LIMIT :limite
+            ";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindValue(':paciente_id', $pacienteId, PDO::PARAM_INT);
+            $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log("❌ Error obteniendo historial: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene todas las citas con datos completos
+     */
+    private function obtenerTodasLasCitasConDatos(int $pacienteId): array
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "
+                SELECT 
+                    c.id,
+                    c.fecha,
+                    c.estado,
+                    u.nombre as doctor_nombre,
+                    e.nombre as especialidad,
+                    c.doctor_id,
+                    c.paciente_id
+                FROM citas c
+                LEFT JOIN doctores d ON c.doctor_id = d.id
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
+                LEFT JOIN especialidades e ON d.especialidad_id = e.id
+                WHERE c.paciente_id = :paciente_id
+                ORDER BY c.fecha DESC
+            ";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':paciente_id' => $pacienteId]);
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log("❌ Error obteniendo todas las citas: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene facturas pendientes
+     */
+    private function obtenerFacturasPendientes(int $pacienteId): array
+    {
+        try {
+            return Factura::obtenerPorPaciente($pacienteId);
+        } catch (Exception $e) {
+            error_log("❌ Error obteniendo facturas: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene historial médico completo
+     */
+    private function obtenerHistorialCompleto(int $pacienteId): array
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "
+                SELECT 
+                    c.id,
+                    c.fecha,
+                    u.nombre as doctor_nombre,
+                    e.nombre as especialidad,
+                    c.estado
+                FROM citas c
+                LEFT JOIN doctores d ON c.doctor_id = d.id
+                LEFT JOIN usuarios u ON d.usuario_id = u.id
+                LEFT JOIN especialidades e ON d.especialidad_id = e.id
+                WHERE c.paciente_id = :paciente_id
+                ORDER BY c.fecha DESC
+            ";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':paciente_id' => $pacienteId]);
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Exception $e) {
+            error_log("❌ Error obteniendo historial completo: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Obtiene datos completos del paciente
+     */
+    private function obtenerDatosPaciente(int $usuarioId): ?array
+    {
+        try {
+            $pdo = BaseDatos::pdo();
+            $sql = "
+                SELECT 
+                    u.id,
+                    u.nombre,
+                    u.email,
+                    u.telefono,
+                    p.id as paciente_id,
+                    p.fecha_nacimiento,
+                    p.direccion,
+                    p.genero,
+                    p.dni
+                FROM usuarios u
+                INNER JOIN pacientes p ON u.id = p.usuario_id
+                WHERE u.id = :usuario_id
+            ";
+            
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([':usuario_id' => $usuarioId]);
+            
+            return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+        } catch (Exception $e) {
+            error_log("❌ Error obteniendo datos paciente: " . $e->getMessage());
+            return null;
+        }
     }
 
     // ========================================
@@ -169,10 +547,10 @@ class PacienteControlador
             );
 
             BaseDatos::pdo()->commit();
-            $this->setMensaje('exito', 'Paciente creado exitosamente');
+            $this->setMensaje('exito', 'Paciente creado exitosamente ✅');
         } catch (Exception $e) {
             BaseDatos::pdo()->rollBack();
-            error_log("Error al crear paciente: " . $e->getMessage());
+            error_log("❌ Error al crear paciente: " . $e->getMessage());
             $this->setMensaje('error', 'Error al crear el paciente. Intente nuevamente.');
         }
 
@@ -249,10 +627,10 @@ class PacienteControlador
             }
 
             BaseDatos::pdo()->commit();
-            $this->setMensaje('exito', 'Paciente actualizado exitosamente');
+            $this->setMensaje('exito', 'Paciente actualizado exitosamente ✅');
         } catch (Exception $e) {
             BaseDatos::pdo()->rollBack();
-            error_log("Error al actualizar paciente: " . $e->getMessage());
+            error_log("❌ Error al actualizar paciente: " . $e->getMessage());
             $this->setMensaje('error', 'Error al actualizar el paciente');
         }
 
@@ -274,9 +652,9 @@ class PacienteControlador
 
         try {
             Usuario::eliminarPaciente((int)$id);
-            $this->setMensaje('exito', 'Paciente eliminado exitosamente');
+            $this->setMensaje('exito', 'Paciente eliminado exitosamente 🗑️');
         } catch (Exception $e) {
-            error_log("Error al eliminar paciente: " . $e->getMessage());
+            error_log("❌ Error al eliminar paciente: " . $e->getMessage());
             $this->setMensaje('error', 'Error al eliminar el paciente');
         }
 
