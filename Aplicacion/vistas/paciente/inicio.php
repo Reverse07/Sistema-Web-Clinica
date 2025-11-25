@@ -664,7 +664,7 @@ $nombrePaciente = $_SESSION['nombre'] ?? 'Paciente';
                 <span class="action-icon">💳</span>
                 <span>Facturas</span>
             </a>
-            <a href="<?= BASE_URL ?>/index.php?accion=perfil" class="action-btn">
+            <a href="<?= BASE_URL ?>/index.php?accion=miPerfil" class="action-btn">
                 <span class="action-icon">👤</span>
                 <span>Mi Perfil</span>
             </a>

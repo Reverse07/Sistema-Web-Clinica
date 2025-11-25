@@ -5,10 +5,11 @@ require_once __DIR__ . '/../configuracion/app.php';
 class Autenticacion
 {
 
-    // 🔐 Configura sesión segura con cookies protegidas
+    // 🔐 Configura sesión segura
     public static function iniciarSesionSegura(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
+
             session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => '/',
@@ -18,42 +19,81 @@ class Autenticacion
                 'samesite' => 'Lax'
             ]);
 
-            session_start(); // 🔄 Inicia sesión después de configurar
+            session_start();
         }
     }
 
-    // ✅ Inicia sesión del usuario, guarda ID, rol y token CSRF
+    /**
+     * Comprueba si el usuario tiene uno o varios roles permitidos.
+     *
+     * @param string|array $roles
+     * @return bool
+     */
+    public static function tieneRol($roles): bool
+    {
+        self::iniciarSesionSegura();
+
+        if (empty($_SESSION['rol'])) {
+            return false;
+        }
+
+        $rolActual = $_SESSION['rol'];
+
+        if (is_string($roles)) {
+            return $rolActual === $roles;
+        }
+
+        if (is_array($roles)) {
+            return in_array($rolActual, $roles, true);
+        }
+
+        return false;
+    }
+
+    // 🔑 Guarda ID, rol y CSRF al iniciar sesión
     public static function login(int $usuarioId, string $rol): void
     {
         self::iniciarSesionSegura();
+
         $_SESSION['usuario_id'] = $usuarioId;
         $_SESSION['rol'] = $rol;
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
+
         session_regenerate_id(true);
     }
 
-    // 🚪 Cierra sesión limpiando variables y destruyendo sesión
+    // 🚪 Cierra sesión limpiamente
     public static function logout(): void
     {
         self::iniciarSesionSegura();
+
         $_SESSION = [];
 
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+
+            setcookie(
+                session_name(),
+                '',
+                time() - 42000,
+                $params['path'],
+                $params['domain'],
+                $params['secure'],
+                $params['httponly']
+            );
         }
 
         session_destroy();
     }
 
-    // 🆔 Devuelve el ID del usuario si está logueado
+    // 🆔 Devuelve el ID del usuario logueado
     public static function usuarioId(): ?int
     {
         self::iniciarSesionSegura();
         return $_SESSION['usuario_id'] ?? null;
     }
 
-    // 🔐 Verifica si el usuario tiene alguno de los roles requeridos
+    // 🔒 Exige que el usuario tenga ciertos roles
     public static function requiereRoles(array $roles): void
     {
         self::iniciarSesionSegura();
@@ -64,7 +104,14 @@ class Autenticacion
         }
     }
 
-    // ✅ Verifica si el usuario ha iniciado sesión; si no, redirige al login
+    // 🏷️ Devuelve el rol actual
+    public static function rol(): ?string
+    {
+        self::iniciarSesionSegura();
+        return $_SESSION['rol'] ?? null;
+    }
+
+    // 🔐 Obliga a que el usuario esté logueado
     public static function requiereLogin(): void
     {
         self::iniciarSesionSegura();
@@ -75,7 +122,7 @@ class Autenticacion
         }
     }
 
-    // 🛡️ Devuelve el token CSRF actual o lo genera si no existe
+    // 🔑 Obtiene o genera token CSRF
     public static function tokenCsrf(): string
     {
         self::iniciarSesionSegura();
@@ -87,22 +134,28 @@ class Autenticacion
         return $_SESSION['csrf'];
     }
 
+    // 👤 Obtiene al usuario logueado desde la base de datos
     public static function usuario()
     {
         self::iniciarSesionSegura();
+
         if (!isset($_SESSION['usuario_id'])) {
             return null;
         }
 
-        // ⚠️ Asegúrate de tener la clase Usuario y su método findById()
-        require_once __DIR__ . '/../modelos/Usuario.php';
+        // 📌 Ruta corregida: modelos está dentro de Aplicacion/
+        require_once __DIR__ . '/../Aplicacion/modelos/Usuario.php';
+
         return Usuario::buscarPorId($_SESSION['usuario_id']);
     }
 
-    // ✅ Verifica si el token CSRF recibido es válido
+    // 🛡️ Verifica token CSRF
     public static function verificarCsrf(?string $token): bool
     {
         self::iniciarSesionSegura();
-        return isset($_SESSION['csrf'], $token) && hash_equals($_SESSION['csrf'], $token);
+
+        return isset($_SESSION['csrf'], $token)
+            && hash_equals($_SESSION['csrf'], $token);
     }
 }
+

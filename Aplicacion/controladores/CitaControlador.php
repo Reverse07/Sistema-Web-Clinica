@@ -479,4 +479,265 @@ private function obtenerPacienteId(int $usuarioId): ?int
 
         $this->redirigir('gestionarCitas');
     }
+
+    /**
+ * Muestra el detalle completo de una cita
+ */
+public function verDetalle()
+{
+    Autenticacion::requiereRoles(['paciente', 'admin', 'doctor']);
+    
+    $id = $_GET['id'] ?? null;
+    
+    if (!$id) {
+        $this->setMensaje('error', 'ID de cita no proporcionado');
+        $this->redirigir('misCitas');
+    }
+
+    // Obtener cita con datos completos
+    $cita = $this->obtenerCitaDetallada($id);
+    
+    if (!$cita) {
+        $this->setMensaje('error', 'Cita no encontrada');
+        $this->redirigir('misCitas');
+    }
+    
+    // Verificar que el paciente solo vea sus propias citas
+    $usuarioId = Autenticacion::usuarioId();
+    $rol = Autenticacion::rol();
+    
+    if ($rol === 'paciente') {
+        $pacienteId = $this->obtenerPacienteId($usuarioId);
+        if ($cita['paciente_id'] != $pacienteId) {
+            $this->setMensaje('error', 'No tienes permiso para ver esta cita');
+            $this->redirigir('misCitas');
+        }
+    }
+
+    $vistaInterna = __DIR__ . "/../vistas/paciente/verDetalleCita.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
+/**
+ * Obtiene datos completos de una cita
+ */
+private function obtenerCitaDetallada(int $id): ?array
+{
+    try {
+        $pdo = BaseDatos::pdo();
+        
+        $sql = "
+            SELECT 
+                c.id,
+                c.fecha,
+                c.estado,
+                c.paciente_id,
+                c.doctor_id,
+                CONCAT(ud.nombre) as doctor_nombre,
+                ud.email as doctor_email,
+                ud.telefono as doctor_telefono,
+                e.nombre as especialidad
+            FROM citas c
+            LEFT JOIN doctores d ON c.doctor_id = d.id
+            LEFT JOIN usuarios ud ON d.usuario_id = ud.id
+            LEFT JOIN especialidades e ON d.especialidad_id = e.id
+            WHERE c.id = :id
+        ";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ?: null;
+        
+    } catch (Exception $e) {
+        error_log("❌ Error obteniendo detalle de cita: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Muestra formulario para reprogramar una cita
+ */
+public function reprogramarCita()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $id = $_GET['id'] ?? null;
+    
+    if (!$id) {
+        $this->setMensaje('error', 'ID de cita no proporcionado');
+        $this->redirigir('misCitas');
+    }
+
+    // Obtener cita con datos completos
+    $cita = $this->obtenerCitaDetallada($id);
+    
+    if (!$cita) {
+        $this->setMensaje('error', 'Cita no encontrada');
+        $this->redirigir('misCitas');
+    }
+
+    // Verificar que sea del paciente autenticado
+    $usuarioId = Autenticacion::usuarioId();
+    $pacienteId = $this->obtenerPacienteId($usuarioId);
+    
+    if ($cita['paciente_id'] != $pacienteId) {
+        $this->setMensaje('error', 'No tienes permiso para reprogramar esta cita');
+        $this->redirigir('misCitas');
+    }
+
+    // Verificar que la cita no esté cancelada
+    if (strtolower($cita['estado']) === 'cancelada') {
+        $this->setMensaje('error', 'No se puede reprogramar una cita cancelada');
+        $this->redirigir('verDetalleCita', ['id' => $id]);
+    }
+
+    // Obtener lista de doctores disponibles
+    $doctores = $this->obtenerDoctoresDisponibles();
+
+    $vistaInterna = __DIR__ . "/../vistas/paciente/reprogramarCita.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
+/**
+ * Guarda la reprogramación de una cita
+ */
+public function guardarReprogramacion()
+{
+    Autenticacion::requiereRoles(['paciente']);
+
+    if (empty($_POST['cita_id']) || empty($_POST['doctor_id']) || 
+        empty($_POST['fecha']) || empty($_POST['hora'])) {
+        $this->setMensaje('error', 'Todos los campos son obligatorios');
+        $this->redirigir('misCitas');
+    }
+
+    try {
+        $citaId = $_POST['cita_id'];
+        $doctorId = $_POST['doctor_id'];
+        $fecha = $_POST['fecha'];
+        $hora = $_POST['hora'];
+        
+        // Combinar fecha y hora
+        $fechaHora = $fecha . ' ' . $hora . ':00';
+
+        // Validar que la fecha sea futura
+        if (strtotime($fechaHora) <= time()) {
+            throw new Exception('La fecha debe ser futura');
+        }
+
+        // Verificar que sea cita del paciente
+        $usuarioId = Autenticacion::usuarioId();
+        $pacienteId = $this->obtenerPacienteId($usuarioId);
+        
+        $pdo = BaseDatos::pdo();
+        
+        // Verificar propiedad de la cita
+        $stmt = $pdo->prepare("SELECT paciente_id FROM citas WHERE id = :id");
+        $stmt->execute([':id' => $citaId]);
+        $citaActual = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$citaActual || $citaActual['paciente_id'] != $pacienteId) {
+            throw new Exception('No tienes permiso para modificar esta cita');
+        }
+
+        // Iniciar transacción
+        $pdo->beginTransaction();
+
+        // 1. Cancelar cita actual
+        $stmt = $pdo->prepare("
+            UPDATE citas 
+            SET estado = 'Cancelada' 
+            WHERE id = :id
+        ");
+        $stmt->execute([':id' => $citaId]);
+
+        // 2. Crear nueva cita
+        $stmt = $pdo->prepare("
+            INSERT INTO citas (paciente_id, doctor_id, fecha, estado)
+            VALUES (:paciente_id, :doctor_id, :fecha, 'Pendiente')
+        ");
+        $stmt->execute([
+            ':paciente_id' => $pacienteId,
+            ':doctor_id' => $doctorId,
+            ':fecha' => $fechaHora
+        ]);
+
+        $nuevaCitaId = $pdo->lastInsertId();
+
+        // Confirmar transacción
+        $pdo->commit();
+
+        $this->setMensaje('exito', '✅ Cita reprogramada exitosamente');
+        $this->redirigir('verDetalleCita', ['id' => $nuevaCitaId]);
+
+    } catch (Exception $e) {
+        if (isset($pdo) && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log("❌ Error al reprogramar cita: " . $e->getMessage());
+        $this->setMensaje('error', 'Error al reprogramar: ' . $e->getMessage());
+        $this->redirigir('misCitas');
+    }
+}
+
+/**
+ * Obtiene horarios disponibles para un doctor y fecha (AJAX)
+ */
+public function obtenerHorariosDisponibles()
+{
+    header('Content-Type: application/json');
+    
+    $doctorId = $_GET['doctor_id'] ?? null;
+    $fecha = $_GET['fecha'] ?? null;
+
+    if (!$doctorId || !$fecha) {
+        echo json_encode(['error' => 'Parámetros incompletos']);
+        exit;
+    }
+
+    try {
+        $pdo = BaseDatos::pdo();
+        
+        // Horarios base (puedes personalizarlo por doctor)
+        $horariosBase = [
+            '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
+            '11:00', '11:30', '14:00', '14:30', '15:00', '15:30',
+            '16:00', '16:30', '17:00', '17:30'
+        ];
+
+        // Obtener horarios ya ocupados
+        $stmt = $pdo->prepare("
+            SELECT DATE_FORMAT(fecha, '%H:%i') as hora
+            FROM citas
+            WHERE doctor_id = :doctor_id
+            AND DATE(fecha) = :fecha
+            AND estado != 'Cancelada'
+        ");
+        $stmt->execute([
+            ':doctor_id' => $doctorId,
+            ':fecha' => $fecha
+        ]);
+        
+        $ocupados = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'hora');
+        
+        // Filtrar disponibles
+        $disponibles = array_filter($horariosBase, function($hora) use ($ocupados) {
+            return !in_array($hora, $ocupados);
+        });
+
+        echo json_encode([
+            'success' => true,
+            'horarios' => array_values($disponibles)
+        ]);
+
+    } catch (Exception $e) {
+        echo json_encode([
+            'error' => 'Error al obtener horarios',
+            'message' => $e->getMessage()
+        ]);
+    }
+    exit;
+}
 }

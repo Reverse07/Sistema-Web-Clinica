@@ -744,10 +744,8 @@ function sortTable(sortBy) {
 }
 
 function verDetalle(citaId) {
-    // Implementar modal o redirección a detalle
-    alert('Ver detalle de la cita #' + citaId);
+    window.location.href = '<?= BASE_URL ?>/index.php?accion=verDetalleCita&id=' + citaId;
 }
-
 function cancelarCita(citaId) {
     if (confirm('¿Estás seguro de que deseas cancelar esta cita?')) {
         window.location.href = '<?= BASE_URL ?>/index.php?accion=cancelarCita&id=' + citaId;

@@ -85,22 +85,16 @@ class PacienteControlador
      * 👤 Perfil del paciente logueado
      */
     public function perfil()
-    {
-        Autenticacion::requiereRoles(['paciente']);
-        
-        try {
-            $usuarioId = Autenticacion::usuarioId();
-            $paciente = $this->obtenerDatosPaciente($usuarioId);
-            
-            $vistaInterna = __DIR__ . "/../vistas/paciente/perfil.php";
-            require __DIR__ . "/../../includes/layout-paciente.php";
-            
-        } catch (Exception $e) {
-            error_log("❌ Error en perfil: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al cargar el perfil');
-            $this->redirigir('dashboardPaciente');
-        }
-    }
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $usuarioId = Autenticacion::usuarioId();
+    $paciente = $this->obtenerDatosPaciente($usuarioId);
+    
+    $vistaInterna = __DIR__ . "/../vistas/paciente/perfil.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
 
     /**
      * 📅 Citas del paciente logueado
@@ -660,4 +654,318 @@ class PacienteControlador
 
         $this->redirigir('gestionarPacientes');
     }
+
+
+// ============================================================
+// 📌 Métodos auxiliares para historial médico
+// ============================================================
+
+/**
+ * Obtener paciente_id a partir de usuario_id
+ */
+private function obtenerPacienteIdPorUsuarioId(int $usuarioId): ?int
+{
+    $pdo = BaseDatos::pdo();
+    $sql = "SELECT id FROM pacientes WHERE usuario_id = :usuario_id LIMIT 1";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':usuario_id' => $usuarioId]);
+    $resultado = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    return $resultado ? (int)$resultado['id'] : null;
+}
+
+/**
+ * Obtener historial médico completo del paciente
+ * Con datos del doctor, especialidad y cita
+ */
+private function obtenerHistorialMedicoPorPaciente(int $pacienteId): array
+{
+    $pdo = BaseDatos::pdo();
+
+    $sql = "
+        SELECT 
+            h.id,
+            h.cita_id,
+            h.motivo,
+            h.diagnostico,
+            h.indicaciones,
+            h.observaciones,
+            h.creada_en,
+            ud.nombre AS doctor_nombre,
+            e.nombre AS especialidad,
+            d.numero_colegiatura,
+            c.fecha AS cita_fecha,
+            c.estado AS cita_estado
+        FROM historias_clinicas h
+        LEFT JOIN citas c ON h.cita_id = c.id
+        LEFT JOIN doctores d ON h.doctor_id = d.id
+        LEFT JOIN usuarios ud ON d.usuario_id = ud.id
+        LEFT JOIN especialidades e ON d.especialidad_id = e.id
+        WHERE h.paciente_id = :paciente_id
+        ORDER BY h.creada_en DESC
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':paciente_id' => $pacienteId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Obtener estadísticas del historial médico
+ * Total de consultas, especialidades visitadas, etc.
+ */
+private function obtenerEstadisticasHistorial(int $pacienteId): array
+{
+    $pdo = BaseDatos::pdo();
+
+    // Total de historias clínicas
+    $sqlTotal = "SELECT COUNT(*) as total FROM historias_clinicas WHERE paciente_id = :paciente_id";
+    $stmtTotal = $pdo->prepare($sqlTotal);
+    $stmtTotal->execute([':paciente_id' => $pacienteId]);
+    $total = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
+
+    // Especialidades más visitadas
+    $sqlEspecialidades = "
+        SELECT 
+            e.nombre AS especialidad,
+            COUNT(*) as cantidad
+        FROM historias_clinicas h
+        LEFT JOIN doctores d ON h.doctor_id = d.id
+        LEFT JOIN especialidades e ON d.especialidad_id = e.id
+        WHERE h.paciente_id = :paciente_id
+        GROUP BY e.id, e.nombre
+        ORDER BY cantidad DESC
+        LIMIT 5
+    ";
+    $stmtEspecialidades = $pdo->prepare($sqlEspecialidades);
+    $stmtEspecialidades->execute([':paciente_id' => $pacienteId]);
+    $especialidades = $stmtEspecialidades->fetchAll(PDO::FETCH_ASSOC);
+
+    // Última consulta
+    $sqlUltima = "
+        SELECT 
+            h.creada_en,
+            ud.nombre AS doctor_nombre,
+            e.nombre AS especialidad
+        FROM historias_clinicas h
+        LEFT JOIN doctores d ON h.doctor_id = d.id
+        LEFT JOIN usuarios ud ON d.usuario_id = ud.id
+        LEFT JOIN especialidades e ON d.especialidad_id = e.id
+        WHERE h.paciente_id = :paciente_id
+        ORDER BY h.creada_en DESC
+        LIMIT 1
+    ";
+    $stmtUltima = $pdo->prepare($sqlUltima);
+    $stmtUltima->execute([':paciente_id' => $pacienteId]);
+    $ultimaConsulta = $stmtUltima->fetch(PDO::FETCH_ASSOC);
+
+    return [
+        'total' => $total,
+        'especialidades' => $especialidades,
+        'ultima_consulta' => $ultimaConsulta
+    ];
+}
+
+// ============================================================
+// 👁️ Ver historia clínica específica (paciente)
+// ============================================================
+
+/**
+ * Permite al paciente ver una historia clínica específica
+ * Solo si pertenece a él
+ */
+public function verHistoria()
+{
+    Autenticacion::requiereRoles(['paciente']);
+
+    $id = $_GET['id'] ?? null;
+
+    if (!$id) {
+        $this->setMensaje('error', '❌ ID no proporcionado');
+        $this->redirigir('miHistorial');
+    }
+
+    $usuario = Autenticacion::usuario();
+    $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
+
+    // Obtener la historia clínica
+    $historia = $this->obtenerHistoriaPorId($id);
+
+    if (!$historia) {
+        $this->setMensaje('error', '❌ Historia clínica no encontrada');
+        $this->redirigir('miHistorial');
+    }
+
+    // Verificar que la historia pertenezca al paciente
+    if ($historia['paciente_id'] != $pacienteId) {
+        $this->setMensaje('error', '⛔ No tiene permiso para ver esta historia clínica');
+        $this->redirigir('miHistorial');
+    }
+
+    $vistaInterna = __DIR__ . "/../vistas/paciente/verHistoria.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
+/**
+ * Obtener historia clínica por ID con todos los datos
+ */
+private function obtenerHistoriaPorId(int $id): ?array
+{
+    $pdo = BaseDatos::pdo();
+
+    $sql = "
+        SELECT 
+            h.id,
+            h.cita_id,
+            h.doctor_id,
+            h.paciente_id,
+            h.motivo,
+            h.diagnostico,
+            h.indicaciones,
+            h.observaciones,
+            h.creada_en,
+            ud.nombre AS doctor_nombre,
+            ud.email AS doctor_email,
+            ud.telefono AS doctor_telefono,
+            e.nombre AS especialidad,
+            d.numero_colegiatura,
+            c.fecha AS cita_fecha,
+            c.estado AS cita_estado
+        FROM historias_clinicas h
+        LEFT JOIN citas c ON h.cita_id = c.id
+        LEFT JOIN doctores d ON h.doctor_id = d.id
+        LEFT JOIN usuarios ud ON d.usuario_id = ud.id
+        LEFT JOIN especialidades e ON d.especialidad_id = e.id
+        WHERE h.id = :id
+        LIMIT 1
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([':id' => $id]);
+    $historia = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    return $historia ?: null;
+}
+
+// ============================================================
+// 📥 Descargar/Imprimir historia clínica (OPCIONAL)
+// ============================================================
+
+/**
+ * Genera PDF del historial médico completo
+ * Requiere librería TCPDF o similar
+ */
+public function descargarHistorial()
+{
+    Autenticacion::requiereRoles(['paciente']);
+
+    $usuario = Autenticacion::usuario();
+    $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
+
+    if (!$pacienteId) {
+        $this->setMensaje('error', '❌ Error al obtener datos del paciente');
+        $this->redirigir('miHistorial');
+    }
+
+    // TODO: Implementar generación de PDF con TCPDF
+    // Por ahora, redirigir con mensaje
+    $this->setMensaje('info', 'ℹ️ Funcionalidad de descarga en desarrollo');
+    $this->redirigir('miHistorial');
+}
+
+/**
+ * Imprimir una historia clínica específica
+ */
+public function imprimirHistoria()
+{
+    Autenticacion::requiereRoles(['paciente']);
+
+    $id = $_GET['id'] ?? null;
+
+    if (!$id) {
+        $this->setMensaje('error', '❌ ID no proporcionado');
+        $this->redirigir('miHistorial');
+    }
+
+    $usuario = Autenticacion::usuario();
+    $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
+
+    $historia = $this->obtenerHistoriaPorId($id);
+
+    if (!$historia || $historia['paciente_id'] != $pacienteId) {
+        $this->setMensaje('error', '⛔ No tiene permiso para imprimir esta historia');
+        $this->redirigir('miHistorial');
+    }
+
+    // TODO: Implementar vista de impresión optimizada
+    $this->setMensaje('info', 'ℹ️ Funcionalidad de impresión en desarrollo');
+    $this->redirigir('verHistoria', ['id' => $id]);
+}
+
+/**
+ * Descarga el historial médico en PDF
+ */
+public function descargarHistoria()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $id = $_GET['id'] ?? null;
+    
+    if (!$id) {
+        $this->setMensaje('error', 'ID no proporcionado');
+        $this->redirigir('historialMedico');
+    }
+
+    // Aquí implementar la generación de PDF
+    // Por ahora redirige a ver
+    $this->redirigir('verHistoria', ['id' => $id]);
+}
+
+/**
+ * Muestra configuración del paciente
+ */
+public function configuracion()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $vistaInterna = __DIR__ . "/../vistas/paciente/configuracion.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
+/**
+ * Guarda notificaciones del paciente
+ */
+public function guardarNotificacionesPaciente()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    // Guardar en la sesión o BD (según tu implementación)
+    $_SESSION['notif_citas'] = isset($_POST['notif_citas']);
+    $_SESSION['notif_confirmacion'] = isset($_POST['notif_confirmacion']);
+    $_SESSION['notif_resultados'] = isset($_POST['notif_resultados']);
+    $_SESSION['notif_facturas'] = isset($_POST['notif_facturas']);
+    $_SESSION['notif_promociones'] = isset($_POST['notif_promociones']);
+    
+    $_SESSION['mensaje'] = ['tipo' => 'exito', 'texto' => '✅ Configuración guardada exitosamente'];
+    header("Location: " . BASE_URL . "/index.php?accion=configuracionPaciente");
+    exit;
+}
+
+/**
+ * Guarda privacidad del paciente
+ */
+public function guardarPrivacidadPaciente()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $_SESSION['compartir_historial'] = isset($_POST['compartir_historial']);
+    $_SESSION['recordar_sesion'] = isset($_POST['recordar_sesion']);
+    
+    $_SESSION['mensaje'] = ['tipo' => 'exito', 'texto' => '🔒 Configuración de privacidad guardada'];
+    header("Location: " . BASE_URL . "/index.php?accion=configuracionPaciente");
+    exit;
+}
+
+
+
 }

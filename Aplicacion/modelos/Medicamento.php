@@ -79,6 +79,20 @@ class Medicamento
         return $stmt->execute([':id' => $id]);
     }
 
+    public static function todos(): array
+{
+    $pdo = BaseDatos::pdo();
+    $stmt = $pdo->query("SELECT * FROM medicamentos ORDER BY id ASC");
+
+    $lista = [];
+    while ($fila = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $lista[] = new Medicamento($fila);
+    }
+
+    return $lista;
+}
+
+
     // Getters
     public function getId(): int { return $this->id; }
     public function getNombre(): string { return $this->nombre; }
