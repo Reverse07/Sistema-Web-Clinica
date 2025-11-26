@@ -1,34 +1,46 @@
-    <?php  
-    require_once __DIR__ . "/../configuracion/app.php"; 
-    require_once __DIR__ . "/../nucleo/Autenticacion.php";  
+<?php  
+// =====================================================
+// 🔐 ENCABEZADO GENERAL
+// =====================================================
 
-    // 🔐 Inicia sesión segura 
-    Autenticacion::iniciarSesionSegura();  
+// Solo requerir configuración (la sesión YA está iniciada en index.php)
+require_once __DIR__ . "/../configuracion/app.php"; 
 
-    // 🧑‍💼 Datos del usuario 
-    $usuarioId = Autenticacion::usuarioId(); 
-    $rol = $_SESSION['rol'] ?? 'invitado';  
+// 🧑‍💼 Obtener datos del usuario desde la sesión YA INICIADA
+$usuarioId = $_SESSION['usuario_id'] ?? null; 
+$rol = $_SESSION['rol'] ?? 'invitado';  
 
-    // 🧾 Carga nombre desde el modelo si se desea mostrar  
+// 🧾 Cargar nombre desde el modelo solo si hay usuario logueado
+$nombre = 'Invitado';
+if ($usuarioId) {
     require_once __DIR__ . "/../Aplicacion/modelos/Usuario.php"; 
-    $usuario = Usuario::buscarPorId($usuarioId); 
-    $nombre = $usuario ? $usuario->getNombre() : 'Invitado'; 
-    ?>  
+    $usuario = Usuario::buscarPorId($usuarioId);
+    if ($usuario) {
+        $nombre = $usuario->getNombre();
+    }
+}
+?>  
 
-    <header class="header-container">     
-        <div class="header-left">         
-            <img src="<?= BASE_URL ?>/recursos/img/logoClinica.jpg" alt="logo Clinica" class="logo-header">         
-            <span class="sistema-nombre">Sistema Clinico Reverse</span>     
-        </div>      
+<!-- ===================================================== -->
+<!-- 🎨 HEADER GENERAL (ADMIN Y PACIENTE) -->
+<!-- ===================================================== -->
+<header class="header-container">     
+    <div class="header-left">         
+        <img src="<?= BASE_URL ?>/recursos/img/logoClinica.jpg" alt="Logo Clínica" class="logo-header">         
+        <span class="sistema-nombre">Sistema Clínico Reverse</span>     
+    </div>      
 
-        <div class="header-center">         
-            <div class="bienvenida-container">
-                <span class="bienvenida">👋 Bienvenido, <strong><?= htmlspecialchars($nombre) ?></strong></span>
-                <span class="rol">🎭 Rol: <strong><?= ucfirst($rol) ?></strong></span>
-            </div>
-        </div>      
+    <div class="header-center">         
+        <div class="bienvenida-container">
+            <span class="bienvenida">👋 Bienvenido, <strong><?= htmlspecialchars($nombre) ?></strong></span>
+            <span class="rol">🎭 Rol: <strong><?= ucfirst($rol) ?></strong></span>
+        </div>
+    </div>      
 
-        <div class="header-right">         
-            <a href="<?= BASE_URL ?>/index.php?accion=logout" class="btn-salir">Cerrar sesión</a>    
-        </div> 
-    </header>
+    <div class="header-right">         
+        <a href="<?= BASE_URL ?>/index.php?accion=logout" class="btn-salir" 
+           onclick="return confirm('¿Estás seguro de que deseas cerrar sesión?');">
+            🚪 Cerrar sesión
+        </a>    
+    </div> 
+</header>
