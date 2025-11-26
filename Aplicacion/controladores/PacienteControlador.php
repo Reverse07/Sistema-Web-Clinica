@@ -19,12 +19,21 @@ class PacienteControlador
      * Redirección helper
      */
     private function redirigir($accion, $params = [])
-    {
-        $query = http_build_query(array_merge(['accion' => $accion], $params));
-        header("Location: ?$query");
-        exit;
-    }
-
+{
+    // Construir parámetros
+    $params['accion'] = $accion;
+    $query = http_build_query($params);
+    
+    // ✅ URL completa con BASE_URL
+    $url = BASE_URL . "/index.php?" . $query;
+    
+    // Log para debugging
+    error_log("🔀 [REDIRIGIR] URL generada: $url");
+    
+    // Redirigir
+    header("Location: $url");
+    exit;
+}
     /**
      * Establece mensaje flash en sesión
      */
@@ -32,11 +41,9 @@ class PacienteControlador
     {
         $_SESSION['mensaje'] = ['tipo' => $tipo, 'texto' => $texto];
     }
-
     // ========================================
     // VISTAS PARA EL ROL PACIENTE
     // ========================================
-
     /**
      * 🏠 Dashboard del paciente logueado (MEJORADO)
      */
@@ -94,7 +101,6 @@ class PacienteControlador
     $vistaInterna = __DIR__ . "/../vistas/paciente/perfil.php";
     require __DIR__ . "/../../includes/layout-paciente.php";
 }
-
 
     /**
      * 📅 Citas del paciente logueado
@@ -195,7 +201,6 @@ class PacienteControlador
             $this->redirigir('dashboardPaciente');
         }
     }
-
     // ========================================
     // MÉTODOS AUXILIARES PRIVADOS
     // ========================================
@@ -470,14 +475,33 @@ class PacienteControlador
      * Lista todos los pacientes (Vista Admin)
      */
     public function gestionarPacientes()
-    {
-        Autenticacion::requiereRoles(['admin']);
-        
-        $pacientes = Paciente::todos();
-        $vistaInterna = __DIR__ . "/../vistas/admin/pacientes.php";
-        require __DIR__ . "/../../includes/layout-admin.php";
-    }
-
+{
+    Autenticacion::requiereRoles(['admin']);
+    
+    $pdo = BaseDatos::pdo();
+    $sql = "
+        SELECT 
+            p.id,
+            p.usuario_id,
+            u.nombre,
+            u.email,
+            u.telefono,
+            p.fecha_nacimiento,
+            p.genero,
+            p.direccion,
+            p.dni
+        FROM pacientes p
+        INNER JOIN usuarios u ON p.usuario_id = u.id
+        WHERE u.rol_id = 3
+        ORDER BY u.nombre ASC
+    ";
+    
+    $stmt = $pdo->query($sql);
+    $pacientes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $vistaInterna = __DIR__ . "/../vistas/admin/pacientes.php";
+    require __DIR__ . "/../../includes/layout-admin.php";
+}
     /**
      * Muestra formulario para crear paciente
      */
@@ -557,47 +581,39 @@ class PacienteControlador
     public function editarPaciente()
     {
         Autenticacion::requiereRoles(['admin']);
-
         $id = $_GET['id'] ?? null;
         if (!$id) {
             $this->setMensaje('error', 'ID de paciente no proporcionado');
             $this->redirigir('gestionarPacientes');
         }
-
         $paciente = Usuario::buscarPorId($id);
         if (!$paciente || $paciente->getRolId() != 3) {
             $this->setMensaje('error', 'Paciente no encontrado');
             $this->redirigir('gestionarPacientes');
         }
-
         $pacienteData = Paciente::buscarPorUsuarioId($id);
         
         $vistaInterna = __DIR__ . "/../vistas/admin/editarPaciente.php";
         require __DIR__ . "/../../includes/layout-admin.php";
     }
-
     /**
      * Actualiza los datos de un paciente
      */
     public function actualizarPaciente()
     {
         Autenticacion::requiereRoles(['admin']);
-
         $id = $_GET['id'] ?? null;
         if (!$id) {
             $this->setMensaje('error', 'ID no proporcionado');
             $this->redirigir('gestionarPacientes');
         }
-
         // Validación básica
         if (empty($_POST['nombre']) || empty($_POST['email'])) {
             $this->setMensaje('error', 'Campos obligatorios incompletos');
             $this->redirigir('editarPaciente', ['id' => $id]);
         }
-
         try {
             BaseDatos::pdo()->beginTransaction();
-
             // Actualizar usuario
             $password = !empty($_POST['password']) ? $_POST['password'] : null;
             Usuario::actualizarUsuario(
@@ -607,7 +623,6 @@ class PacienteControlador
                 $_POST['telefono'] ?? '',
                 $password
             );
-
             // Actualizar datos específicos del paciente
             $paciente = Paciente::buscarPorUsuarioId((int)$id);
             if ($paciente) {
@@ -619,7 +634,6 @@ class PacienteControlador
                     $_POST['dni'] ?? ''
                 );
             }
-
             BaseDatos::pdo()->commit();
             $this->setMensaje('exito', 'Paciente actualizado exitosamente ✅');
         } catch (Exception $e) {
@@ -627,39 +641,58 @@ class PacienteControlador
             error_log("❌ Error al actualizar paciente: " . $e->getMessage());
             $this->setMensaje('error', 'Error al actualizar el paciente');
         }
-
         $this->redirigir('gestionarPacientes');
     }
-
-    /**
-     * Elimina un paciente del sistema
-     */
-    public function eliminarPaciente()
-    {
-        Autenticacion::requiereRoles(['admin']);
-
-        $id = $_GET['id'] ?? null;
-        if (!$id) {
-            $this->setMensaje('error', 'ID no proporcionado');
-            $this->redirigir('gestionarPacientes');
-        }
-
-        try {
-            Usuario::eliminarPaciente((int)$id);
-            $this->setMensaje('exito', 'Paciente eliminado exitosamente 🗑️');
-        } catch (Exception $e) {
-            error_log("❌ Error al eliminar paciente: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al eliminar el paciente');
-        }
-
+ /**
+ * Elimina un paciente del sistema
+ */
+public function eliminarPaciente()
+{
+    Autenticacion::requiereRoles(['admin']);
+    
+    error_log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    error_log("🟢 [CONTROLADOR] Método eliminarPaciente() iniciado");
+    error_log("🟢 [CONTROLADOR] REQUEST_URI: " . ($_SERVER['REQUEST_URI'] ?? 'N/A'));
+    error_log("🟢 [CONTROLADOR] GET params: " . json_encode($_GET));
+    
+    $id = $_GET['id'] ?? null;
+    error_log("🟢 [CONTROLADOR] ID recibido: " . ($id ?? 'NULL'));
+    
+    if (!$id) {
+        error_log("❌ [CONTROLADOR] ID no proporcionado");
+        $this->setMensaje('error', '❌ ID no proporcionado');
         $this->redirigir('gestionarPacientes');
+        return;
     }
-
-
+    
+    try {
+        error_log("🟢 [CONTROLADOR] Llamando a Usuario::eliminarPaciente($id)");
+        $resultado = Usuario::eliminarPaciente((int)$id);
+        
+        error_log("🟢 [CONTROLADOR] Resultado de eliminación: " . ($resultado ? 'TRUE' : 'FALSE'));
+        
+        if ($resultado) {
+            error_log("✅ [CONTROLADOR] Eliminación exitosa");
+            $this->setMensaje('exito', '✅ Paciente eliminado exitosamente');
+        } else {
+            error_log("⚠️ [CONTROLADOR] Eliminación falló (retornó false)");
+            $this->setMensaje('error', '⚠️ No se pudo eliminar el paciente. Revisa los logs del servidor.');
+        }
+        
+    } catch (Exception $e) {
+        error_log("❌ [CONTROLADOR] Excepción capturada: " . $e->getMessage());
+        error_log("❌ [CONTROLADOR] Stack trace: " . $e->getTraceAsString());
+        $this->setMensaje('error', '❌ Error al eliminar el paciente: ' . $e->getMessage());
+    }
+    
+    error_log("🟢 [CONTROLADOR] Redirigiendo a gestionarPacientes");
+    error_log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    
+    $this->redirigir('gestionarPacientes');
+}
 // ============================================================
 // 📌 Métodos auxiliares para historial médico
 // ============================================================
-
 /**
  * Obtener paciente_id a partir de usuario_id
  */
@@ -673,7 +706,6 @@ private function obtenerPacienteIdPorUsuarioId(int $usuarioId): ?int
     
     return $resultado ? (int)$resultado['id'] : null;
 }
-
 /**
  * Obtener historial médico completo del paciente
  * Con datos del doctor, especialidad y cita
@@ -709,7 +741,6 @@ private function obtenerHistorialMedicoPorPaciente(int $pacienteId): array
     $stmt->execute([':paciente_id' => $pacienteId]);
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
-
 /**
  * Obtener estadísticas del historial médico
  * Total de consultas, especialidades visitadas, etc.
@@ -717,13 +748,11 @@ private function obtenerHistorialMedicoPorPaciente(int $pacienteId): array
 private function obtenerEstadisticasHistorial(int $pacienteId): array
 {
     $pdo = BaseDatos::pdo();
-
     // Total de historias clínicas
     $sqlTotal = "SELECT COUNT(*) as total FROM historias_clinicas WHERE paciente_id = :paciente_id";
     $stmtTotal = $pdo->prepare($sqlTotal);
     $stmtTotal->execute([':paciente_id' => $pacienteId]);
     $total = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
-
     // Especialidades más visitadas
     $sqlEspecialidades = "
         SELECT 
@@ -740,7 +769,6 @@ private function obtenerEstadisticasHistorial(int $pacienteId): array
     $stmtEspecialidades = $pdo->prepare($sqlEspecialidades);
     $stmtEspecialidades->execute([':paciente_id' => $pacienteId]);
     $especialidades = $stmtEspecialidades->fetchAll(PDO::FETCH_ASSOC);
-
     // Última consulta
     $sqlUltima = "
         SELECT 
@@ -758,18 +786,15 @@ private function obtenerEstadisticasHistorial(int $pacienteId): array
     $stmtUltima = $pdo->prepare($sqlUltima);
     $stmtUltima->execute([':paciente_id' => $pacienteId]);
     $ultimaConsulta = $stmtUltima->fetch(PDO::FETCH_ASSOC);
-
     return [
         'total' => $total,
         'especialidades' => $especialidades,
         'ultima_consulta' => $ultimaConsulta
     ];
 }
-
 // ============================================================
 // 👁️ Ver historia clínica específica (paciente)
 // ============================================================
-
 /**
  * Permite al paciente ver una historia clínica específica
  * Solo si pertenece a él
@@ -777,42 +802,33 @@ private function obtenerEstadisticasHistorial(int $pacienteId): array
 public function verHistoria()
 {
     Autenticacion::requiereRoles(['paciente']);
-
     $id = $_GET['id'] ?? null;
-
     if (!$id) {
         $this->setMensaje('error', '❌ ID no proporcionado');
         $this->redirigir('miHistorial');
     }
-
     $usuario = Autenticacion::usuario();
     $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
-
     // Obtener la historia clínica
     $historia = $this->obtenerHistoriaPorId($id);
-
     if (!$historia) {
         $this->setMensaje('error', '❌ Historia clínica no encontrada');
         $this->redirigir('miHistorial');
     }
-
     // Verificar que la historia pertenezca al paciente
     if ($historia['paciente_id'] != $pacienteId) {
         $this->setMensaje('error', '⛔ No tiene permiso para ver esta historia clínica');
         $this->redirigir('miHistorial');
     }
-
     $vistaInterna = __DIR__ . "/../vistas/paciente/verHistoria.php";
     require __DIR__ . "/../../includes/layout-paciente.php";
 }
-
 /**
  * Obtener historia clínica por ID con todos los datos
  */
 private function obtenerHistoriaPorId(int $id): ?array
 {
     $pdo = BaseDatos::pdo();
-
     $sql = "
         SELECT 
             h.id,
@@ -839,34 +855,26 @@ private function obtenerHistoriaPorId(int $id): ?array
         WHERE h.id = :id
         LIMIT 1
     ";
-
     $stmt = $pdo->prepare($sql);
     $stmt->execute([':id' => $id]);
     $historia = $stmt->fetch(PDO::FETCH_ASSOC);
-
     return $historia ?: null;
 }
-
 // ============================================================
 // 📥 Descargar/Imprimir historia clínica (OPCIONAL)
 // ============================================================
-
 /**
  * Genera PDF del historial médico completo
  * Requiere librería TCPDF o similar
  */
-public function descargarHistorial()
-{
+public function descargarHistorial(){
     Autenticacion::requiereRoles(['paciente']);
-
     $usuario = Autenticacion::usuario();
     $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
-
     if (!$pacienteId) {
         $this->setMensaje('error', '❌ Error al obtener datos del paciente');
         $this->redirigir('miHistorial');
     }
-
     // TODO: Implementar generación de PDF con TCPDF
     // Por ahora, redirigir con mensaje
     $this->setMensaje('info', 'ℹ️ Funcionalidad de descarga en desarrollo');
@@ -876,46 +884,35 @@ public function descargarHistorial()
 /**
  * Imprimir una historia clínica específica
  */
-public function imprimirHistoria()
-{
+public function imprimirHistoria(){
     Autenticacion::requiereRoles(['paciente']);
-
     $id = $_GET['id'] ?? null;
-
     if (!$id) {
         $this->setMensaje('error', '❌ ID no proporcionado');
         $this->redirigir('miHistorial');
     }
-
     $usuario = Autenticacion::usuario();
     $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
-
     $historia = $this->obtenerHistoriaPorId($id);
-
     if (!$historia || $historia['paciente_id'] != $pacienteId) {
         $this->setMensaje('error', '⛔ No tiene permiso para imprimir esta historia');
         $this->redirigir('miHistorial');
     }
-
     // TODO: Implementar vista de impresión optimizada
     $this->setMensaje('info', 'ℹ️ Funcionalidad de impresión en desarrollo');
     $this->redirigir('verHistoria', ['id' => $id]);
 }
-
 /**
  * Descarga el historial médico en PDF
  */
 public function descargarHistoria()
 {
-    Autenticacion::requiereRoles(['paciente']);
-    
-    $id = $_GET['id'] ?? null;
-    
+    Autenticacion::requiereRoles(['paciente']); 
+    $id = $_GET['id'] ?? null;  
     if (!$id) {
         $this->setMensaje('error', 'ID no proporcionado');
         $this->redirigir('historialMedico');
     }
-
     // Aquí implementar la generación de PDF
     // Por ahora redirige a ver
     $this->redirigir('verHistoria', ['id' => $id]);
@@ -927,18 +924,15 @@ public function descargarHistoria()
 public function configuracion()
 {
     Autenticacion::requiereRoles(['paciente']);
-    
     $vistaInterna = __DIR__ . "/../vistas/paciente/configuracion.php";
     require __DIR__ . "/../../includes/layout-paciente.php";
 }
-
 /**
  * Guarda notificaciones del paciente
  */
 public function guardarNotificacionesPaciente()
 {
     Autenticacion::requiereRoles(['paciente']);
-    
     // Guardar en la sesión o BD (según tu implementación)
     $_SESSION['notif_citas'] = isset($_POST['notif_citas']);
     $_SESSION['notif_confirmacion'] = isset($_POST['notif_confirmacion']);
@@ -950,7 +944,6 @@ public function guardarNotificacionesPaciente()
     header("Location: " . BASE_URL . "/index.php?accion=configuracionPaciente");
     exit;
 }
-
 /**
  * Guarda privacidad del paciente
  */
@@ -965,7 +958,4 @@ public function guardarPrivacidadPaciente()
     header("Location: " . BASE_URL . "/index.php?accion=configuracionPaciente");
     exit;
 }
-
-
-
 }

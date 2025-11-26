@@ -32,41 +32,63 @@ class Paciente
         ]);
     }
 
-    // =============================
-    // 📌 GETTERS
+      // =============================
+    // 📌 GETTERS MEJORADOS (manejan null)
     // =============================
     public function getId(): int { return $this->id; }
     public function getUsuarioId(): int { return $this->usuario_id; }
-    public function getFechaNacimiento(): string { return $this->fecha_nacimiento; }
-    public function getGenero(): string { return $this->genero; }
-    public function getDireccion(): string { return $this->direccion; }
-    public function getDni(): string { return $this->dni; }
+    public function getFechaNacimiento(): string { return $this->fecha_nacimiento ?? ''; }
+    public function getGenero(): string { return $this->genero ?? ''; }
+    public function getDireccion(): string { return $this->direccion ?? ''; }
+    public function getDni(): string { return $this->dni ?? ''; }
     public function getUsuario(): Usuario { return $this->usuario; }
+
+    // =============================
+    // 📋 Obtener todos los pacientes COMO ARRAY (para la vista actual)
+    // =============================
+    public static function todosArray(): array
+    {
+        $pdo = BaseDatos::pdo();
+        $stmt = $pdo->query("SELECT p.*, u.nombre, u.email, u.telefono 
+                             FROM pacientes p
+                             JOIN usuarios u ON p.usuario_id = u.id
+                             ORDER BY p.id ASC");
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 
     // =============================
     // 📝 Crear nuevo paciente
     // =============================
-    public static function crear(int $usuario_id, string $fecha_nacimiento, string $genero, string $direccion, string $dni): bool
-    {
-        try {
-            $pdo = BaseDatos::pdo();
-            $stmt = $pdo->prepare(
-                "INSERT INTO pacientes (usuario_id, fecha_nacimiento, genero, direccion, dni)
-                 VALUES (:usuario_id, :fecha_nacimiento, :genero, :direccion, :dni)"
-            );
+public static function crear(int $usuario_id, string $fecha_nacimiento, string $genero, string $direccion, string $dni): bool
+{
+    try {
+        $pdo = BaseDatos::pdo();
 
-            return $stmt->execute([
-                ':usuario_id'       => $usuario_id,
-                ':fecha_nacimiento' => $fecha_nacimiento,
-                ':genero'           => $genero,
-                ':direccion'        => $direccion,
-                ':dni'              => $dni
-            ]);
-        } catch (PDOException $e) {
-            error_log("❌ Error en Paciente::crear(): " . $e->getMessage());
-            return false;
-        }
+        // Convertir valores vacíos a NULL
+        $fecha_nacimiento = ($fecha_nacimiento === '' || $fecha_nacimiento === null) ? null : $fecha_nacimiento;
+        $genero           = ($genero === '') ? null : $genero;
+        $direccion        = ($direccion === '') ? null : $direccion;
+        $dni              = ($dni === '') ? null : $dni;
+
+        $stmt = $pdo->prepare(
+            "INSERT INTO pacientes (usuario_id, fecha_nacimiento, genero, direccion, dni)
+             VALUES (:usuario_id, :fecha_nacimiento, :genero, :direccion, :dni)"
+        );
+
+        $stmt->bindValue(':usuario_id', $usuario_id, PDO::PARAM_INT);
+        $stmt->bindValue(':fecha_nacimiento', $fecha_nacimiento, $fecha_nacimiento ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':genero', $genero, $genero ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':direccion', $direccion, $direccion ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':dni', $dni, $dni ? PDO::PARAM_STR : PDO::PARAM_NULL);
+
+        return $stmt->execute();
+
+    } catch (PDOException $e) {
+        error_log("❌ Error en Paciente::crear(): " . $e->getMessage());
+        return false;
     }
+}
 
     // =============================
     // 📋 Obtener todos los pacientes

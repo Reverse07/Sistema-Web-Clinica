@@ -1,6 +1,5 @@
 // =============================================
 // 🎯 APP.JS - Sistema Clínico
-// Versión limpia sin duplicados
 // =============================================
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -33,7 +32,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // ==========================================
     // 🗑️ CONFIRMACIÓN PARA ELIMINAR REGISTROS
+    // ⚠️ COMENTAR ESTE BLOQUE - CAUSA CONFLICTO
     // ==========================================
+    /*
     const botonesEliminar = document.querySelectorAll(".btn-eliminar");
     
     botonesEliminar.forEach(boton => {
@@ -57,6 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
     });
+    */
 
     // ==========================================
     // 📱 MENÚ MÓVIL (SIDEBAR TOGGLE)
@@ -69,7 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
             sidebar.classList.toggle('open');
         });
 
-        // Cerrar sidebar al hacer clic fuera
         document.addEventListener('click', function(e) {
             if (window.innerWidth <= 1024) {
                 if (!sidebar.contains(e.target) && !menuToggle.contains(e.target)) {

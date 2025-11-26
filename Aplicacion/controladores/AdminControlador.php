@@ -74,6 +74,23 @@ class AdminControlador
     }
 
     /**
+ * 📋 Mostrar lista de pacientes
+ */
+public function pacientes()
+{
+    $this->validarAutenticacion();
+    
+    // Opción 1: Usar arrays (recomendado para esta vista)
+    $pacientes = Paciente::todosArray();
+    
+    // Opción 2: Si prefieres objetos, cambia la vista
+    // $pacientes = Paciente::todos();
+    
+    $vistaInterna = __DIR__ . "/../vistas/admin/pacientes.php";
+    require __DIR__ . "/../../includes/layout-admin.php";
+}
+
+    /**
      * 📋 Obtiene las últimas 10 citas registradas con datos de paciente y doctor
      */
     private function obtenerCitasRecientes()
@@ -500,4 +517,7 @@ class AdminControlador
         </html>
         ";
     }
+
+
+
 }

@@ -2,38 +2,65 @@
 // =====================================================
 // 📌 PUNTO DE ENTRADA PRINCIPAL DEL SISTEMA
 // Sistema de Gestión de Clínica Médica
+// Ubicación: publico/index.php
 // =====================================================
 
-session_start();
-
 // =====================================================
-// 🔹 CONFIGURACIÓN Y NÚCLEO
+// 🔹 PASO 1: CONFIGURACIÓN (sin session_start)
 // =====================================================
 require_once __DIR__ . "/../configuracion/app.php";
+
+// =====================================================
+// 🔹 PASO 2: INICIAR SESIÓN (después de configurar)
+// =====================================================
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+// =====================================================
+// 🔹 PASO 3: NÚCLEO DEL SISTEMA
+// =====================================================
 require_once __DIR__ . "/../nucleo/Autenticacion.php";
 require_once __DIR__ . "/../nucleo/Enrutador.php";
 require_once __DIR__ . "/../nucleo/BaseDatos.php";
 
-// ✅ Composer Autoload (TCPDF, PHPMailer, etc.)
-require_once __DIR__ . '/../vendor/autoload.php';
+// =====================================================
+// 🔹 PASO 4: AUTOLOAD DE COMPOSER (TCPDF, PHPMailer, etc.)
+// =====================================================
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+} else {
+    error_log("⚠️ ADVERTENCIA: vendor/autoload.php no encontrado. Ejecuta: composer install");
+}
 
 // =====================================================
-// 🔹 CONTROLADORES
+// 🔹 PASO 5: CONTROLADORES
 // =====================================================
-require_once __DIR__ . "/../Aplicacion/controladores/AuthControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/AdminControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/DoctorControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/PacienteControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/UsuarioControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/CitaControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/FacturaControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/HistoriaControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/RecetaControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/ReporteControlador.php";
-require_once __DIR__ . "/../Aplicacion/controladores/ConfiguracionControlador.php";
+$controladores = [
+    'AuthControlador',
+    'AdminControlador',
+    'DoctorControlador',
+    'PacienteControlador',
+    'UsuarioControlador',
+    'CitaControlador',
+    'FacturaControlador',
+    'HistoriaControlador',
+    'RecetaControlador',
+    'ReporteControlador',
+    'ConfiguracionControlador'
+];
+
+foreach ($controladores as $controlador) {
+    $ruta = __DIR__ . "/../Aplicacion/controladores/{$controlador}.php";
+    if (file_exists($ruta)) {
+        require_once $ruta;
+    } else {
+        error_log("⚠️ ADVERTENCIA: Controlador no encontrado - $controlador");
+    }
+}
 
 // =====================================================
-// 🚦 ENRUTAMIENTO
+// 🚦 PASO 6: ENRUTAMIENTO
 // =====================================================
 
 // Detectar acción desde URL
@@ -137,23 +164,25 @@ $rutas = [
     "actualizarMiPerfil"         => [UsuarioControlador::class, "actualizarMiPerfil"],
     "cambiarPassword"            => [UsuarioControlador::class, "cambiarPassword"],
 
-    // ========================================
-    // 📅 CITAS
-    // ========================================
-    // Gestión general
-    "gestionarCitas"             => [CitaControlador::class, "gestionar"],
-    "citas"                      => [CitaControlador::class, "gestionar"],
-    "crearCita"                  => [CitaControlador::class, "crear"],
-    "guardarCita"                => [CitaControlador::class, "guardar"],
-    "editarCita"                 => [CitaControlador::class, "editar"],
-    "actualizarCita"             => [CitaControlador::class, "actualizar"],
-    "verDetalleCita"             => [CitaControlador::class, "verDetalle"],
-    "confirmarCita"              => [CitaControlador::class, "confirmar"],
-    "cancelarCita"               => [CitaControlador::class, "cancelar"],
-    "eliminarCita"               => [CitaControlador::class, "eliminarCita"],
-    "reprogramarCita"            => [CitaControlador::class, "reprogramarCita"],
-    "guardarReprogramacion"      => [CitaControlador::class, "guardarReprogramacion"],
-    "obtenerHorariosDisponibles" => [CitaControlador::class, "obtenerHorariosDisponibles"],
+// ========================================
+// 📅 CITAS
+// ========================================
+"gestionarCitas"             => [CitaControlador::class, "gestionar"],
+"citas"                      => [CitaControlador::class, "gestionar"],
+"crearCita"                  => [CitaControlador::class, "crear"],
+"guardarCita"                => [CitaControlador::class, "guardar"],
+"editarCita"                 => [CitaControlador::class, "editar"],  // ✅ ESTA ES LA CORRECTA
+"editar"                     => [CitaControlador::class, "editar"],  // ✅ AGREGAR ESTA LÍNEA
+"actualizarCita"             => [CitaControlador::class, "actualizar"],
+"verDetalleCita"             => [CitaControlador::class, "verDetalle"],
+"confirmarCita"              => [CitaControlador::class, "confirmar"],
+"confirmar"                  => [CitaControlador::class, "confirmar"],  // ✅ AGREGAR ESTA LÍNEA
+"cancelarCita"               => [CitaControlador::class, "cancelar"],
+"cancelar"                   => [CitaControlador::class, "cancelar"],   // ✅ AGREGAR ESTA LÍNEA
+"eliminarCita"               => [CitaControlador::class, "eliminarCita"],
+"reprogramarCita"            => [CitaControlador::class, "reprogramarCita"],
+"guardarReprogramacion"      => [CitaControlador::class, "guardarReprogramacion"],
+"obtenerHorariosDisponibles" => [CitaControlador::class, "obtenerHorariosDisponibles"],
 
     // ========================================
     // 💳 FACTURAS
@@ -180,11 +209,8 @@ $rutas = [
     // ========================================
     // 💊 RECETAS
     // ========================================
-    // Vistas del paciente
     "misRecetas"                 => [RecetaControlador::class, "misRecetas"],
     "verMiReceta"                => [RecetaControlador::class, "verMiReceta"],
-
-    // Gestión admin/doctor
     "gestionarRecetas"           => [RecetaControlador::class, "gestionar"],
     "crearReceta"                => [RecetaControlador::class, "crear"],
     "guardarReceta"              => [RecetaControlador::class, "guardar"],
@@ -200,6 +226,17 @@ $rutas = [
 ];
 
 // =====================================================
-// 🚀 EJECUTAR ENRUTADOR
+// 🚀 PASO 7: EJECUTAR ENRUTADOR
 // =====================================================
-Enrutador::resolver($accion, $rutas);
+try {
+    Enrutador::resolver($accion, $rutas);
+} catch (Exception $e) {
+    if (APP_ENV === 'dev') {
+        echo "<h1>❌ Error en el sistema</h1>";
+        echo "<pre>" . htmlspecialchars($e->getMessage()) . "</pre>";
+        echo "<pre>" . htmlspecialchars($e->getTraceAsString()) . "</pre>";
+    } else {
+        error_log("Error en enrutador: " . $e->getMessage());
+        header("Location: " . BASE_URL . "/index.php?accion=loginVista");
+    }
+}

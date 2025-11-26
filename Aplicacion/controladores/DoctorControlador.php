@@ -18,12 +18,21 @@ class DoctorControlador
      * Redirección helper
      */
     private function redirigir($accion, $params = [])
-    {
-        $query = http_build_query(array_merge(['accion' => $accion], $params));
-        header("Location: ?$query");
-        exit;
-    }
-
+{
+    // Construir parámetros
+    $params['accion'] = $accion;
+    $query = http_build_query($params);
+    
+    // ✅ URL completa con BASE_URL
+    $url = BASE_URL . "/index.php?" . $query;
+    
+    // Log para debugging
+    error_log("🔀 [REDIRIGIR] URL generada: $url");
+    
+    // Redirigir
+    header("Location: $url");
+    exit;
+}
     /**
      * Establece mensaje flash en sesión
      */
@@ -255,23 +264,41 @@ class DoctorControlador
      * Elimina un doctor del sistema
      */
     public function eliminarDoctor()
-    {
-        Autenticacion::requiereRoles(['admin']);
-
-        $id = $_GET['id'] ?? null;
-        if (!$id) {
-            $this->setMensaje('error', 'ID no proporcionado');
-            $this->redirigir('gestionarDoctores');
-        }
-
-        try {
-            Usuario::eliminarDoctor((int)$id);
-            $this->setMensaje('exito', 'Doctor eliminado exitosamente');
-        } catch (Exception $e) {
-            error_log("Error al eliminar doctor: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al eliminar el doctor');
-        }
-
+{
+    Autenticacion::requiereRoles(['admin']);
+    
+    error_log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    error_log("🔵 [CONTROLADOR] Método eliminarDoctor() iniciado");
+    
+    $id = $_GET['id'] ?? null;
+    error_log("🔵 [CONTROLADOR] ID recibido: " . ($id ?? 'NULL'));
+    
+    if (!$id) {
+        error_log("❌ [CONTROLADOR] ID no proporcionado");
+        $this->setMensaje('error', 'ID no proporcionado');
         $this->redirigir('gestionarDoctores');
     }
+    
+    try {
+        error_log("🔵 [CONTROLADOR] Llamando a Usuario::eliminarDoctor($id)");
+        $resultado = Usuario::eliminarDoctor((int)$id);
+        
+        if ($resultado) {
+            error_log("✅ [CONTROLADOR] Eliminación exitosa");
+            $this->setMensaje('exito', '✅ Doctor eliminado exitosamente');
+        } else {
+            error_log("⚠️ [CONTROLADOR] Eliminación falló (retornó false)");
+            $this->setMensaje('error', '⚠️ No se pudo eliminar el doctor');
+        }
+        
+    } catch (Exception $e) {
+        error_log("❌ [CONTROLADOR] Excepción capturada: " . $e->getMessage());
+        error_log("❌ [CONTROLADOR] Stack trace: " . $e->getTraceAsString());
+        $this->setMensaje('error', '❌ Error al eliminar el doctor: ' . $e->getMessage());
+    }
+    
+    error_log("🔵 [CONTROLADOR] Redirigiendo a gestionarDoctores");
+    error_log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+    $this->redirigir('gestionarDoctores');
+}
 }

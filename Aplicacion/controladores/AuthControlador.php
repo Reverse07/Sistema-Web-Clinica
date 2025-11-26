@@ -105,42 +105,122 @@ public function privacidad()
         require __DIR__ . "/../vistas/auth/registro.php";
     }
 
-    // =====================
-    // 📌 Procesar Registro
-    // =====================
-    public function registro()
-    {
-        // 🔹 Verifica si el formulario fue enviado por POST
-        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            // 🔹 Obtiene los datos del formulario
-            $nombre   = $_POST['nombre'] ?? '';
-            $email    = $_POST['email'] ?? '';
-            $password = $_POST['password'] ?? '';
-            $telefono = $_POST['telefono'] ?? '';
-            $rol_id   = $_POST['rol_id'] ?? 3; // 🔹 Si no se envía rol_id, se asigna 3 (paciente)
+// =====================
+// 📌 Procesar Registro - CORREGIDO Y MEJORADO
+// =====================
+public function registro()
+{
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        
+        $nombre   = trim($_POST['nombre'] ?? '');
+        $email    = trim($_POST['email'] ?? '');
+        $password = $_POST['password'] ?? '';
+        $password_confirm = $_POST['password_confirm'] ?? '';
+        $telefono = trim($_POST['telefono'] ?? '');
+        $rol_id   = 3;
 
-            $usuario = new Usuario([
-                'nombre'   => $_POST['nombre'],
-                'email'    => $_POST['email'],
-                'password' => $_POST['password'], // ⚠️ en plano, SIN hash aquí
-                'telefono' => $_POST['telefono'],
-                'rol_id'   => $_POST['rol_id']
-            ]);
-            // 🔹 Intenta guardar el usuario en la base de datos
-            if ($usuario->crearUsuario()) {
-                // 🔹 Si se registra correctamente, redirige al inicio público con mensaje
-                header("Location: " . BASE_URL . "/index.php?accion=loginVista&msg=registrado");
-                exit;
-            } else {
-                // 🔹 Si falla el registro, muestra error y vuelve a la vista de registro
-                $error = "Error al registrar usuario";
-                require __DIR__ . "/../vistas/auth/registro.php";
-            }
-        } else {
-            // 🔹 Si no es POST, muestra la vista de registro
-            $this->registroVista();
+        // Validaciones (mantener igual)
+        if (empty($nombre) || empty($email) || empty($password)) {
+            $error = "Todos los campos son obligatorios";
+            require __DIR__ . "/../vistas/auth/registro.php";
+            return;
         }
+
+        if ($password !== $password_confirm) {
+            $error = "Las contraseñas no coinciden";
+            require __DIR__ . "/../vistas/auth/registro.php";
+            return;
+        }
+
+        if (strlen($password) < 6) {
+            $error = "La contraseña debe tener al menos 6 caracteres";
+            require __DIR__ . "/../vistas/auth/registro.php";
+            return;
+        }
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = "Email no válido";
+            require __DIR__ . "/../vistas/auth/registro.php";
+            return;
+        }
+
+        if (Usuario::buscarPorEmail($email)) {
+            $error = "Este email ya está registrado";
+            require __DIR__ . "/../vistas/auth/registro.php";
+            return;
+        }
+
+        try {
+            $pdo = BaseDatos::pdo();
+            
+            // 🔍 DEBUG: Verificar conexión
+            error_log("DEBUG: Conexión BD establecida");
+            
+            $pdo->beginTransaction();
+
+            // 🔹 PASO 1: Crear usuario - VERSIÓN DIRECTA
+            $sqlUsuario = "
+                INSERT INTO usuarios (nombre, email, password, telefono, rol_id) 
+                VALUES (:nombre, :email, :password, :telefono, :rol_id)
+            ";
+            
+            $passwordHash = password_hash($password, PASSWORD_BCRYPT);
+            
+            $stmtUsuario = $pdo->prepare($sqlUsuario);
+            $resultadoUsuario = $stmtUsuario->execute([
+                ':nombre' => $nombre,
+                ':email' => $email,
+                ':password' => $passwordHash,
+                ':telefono' => $telefono,
+                ':rol_id' => $rol_id
+            ]);
+
+            if (!$resultadoUsuario) {
+                $errorInfo = $stmtUsuario->errorInfo();
+                throw new Exception("Error al crear usuario: " . $errorInfo[2]);
+            }
+
+            $usuarioId = $pdo->lastInsertId();
+            error_log("DEBUG: Usuario creado con ID: " . $usuarioId);
+
+            // 🔹 PASO 2: Crear paciente - VERSIÓN MÍNIMA
+            $sqlPaciente = "INSERT INTO pacientes (usuario_id) VALUES (:usuario_id)";
+            $stmtPaciente = $pdo->prepare($sqlPaciente);
+            $resultadoPaciente = $stmtPaciente->execute([
+                ':usuario_id' => $usuarioId
+            ]);
+
+            if (!$resultadoPaciente) {
+                $errorInfo = $stmtPaciente->errorInfo();
+                throw new Exception("Error al crear paciente: " . $errorInfo[2]);
+            }
+
+            $pdo->commit();
+            error_log("✅ TRANSACCIÓN COMPLETADA - Usuario ID: $usuarioId");
+
+            header("Location: " . BASE_URL . "/index.php?accion=loginVista&msg=registrado");
+            exit;
+
+        } catch (PDOException $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log("❌ ERROR PDO: " . $e->getMessage());
+            error_log("❌ CÓDIGO ERROR: " . $e->getCode());
+            $error = "Error de base de datos: " . $e->getMessage();
+            require __DIR__ . "/../vistas/auth/registro.php";
+        } catch (Exception $e) {
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log("❌ ERROR GENERAL: " . $e->getMessage());
+            $error = $e->getMessage();
+            require __DIR__ . "/../vistas/auth/registro.php";
+        }
+    } else {
+        $this->registroVista();
     }
+}
 
     // =====================
     // 📌 Logout
