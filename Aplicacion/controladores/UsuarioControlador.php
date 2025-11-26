@@ -232,103 +232,172 @@ public function eliminarUsuario()
      * Actualiza el perfil del usuario logueado
      */
     public function actualizarMiPerfil()
-    {
-        Autenticacion::requiereLogin();
+{
+    Autenticacion::requiereLogin();
 
-        $usuarioId = $_SESSION['usuario_id'] ?? null;
-        if (!$usuarioId) {
-            $this->redirigir('login');
-        }
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    $rol = $_SESSION['rol'] ?? 'paciente';
+    
+    if (!$usuarioId) {
+        $this->redirigir('login');
+    }
 
+    $pdo = BaseDatos::pdo();
+
+    try {
         // Validación básica
         if (empty($_POST['nombre']) || empty($_POST['email'])) {
-            $this->setMensaje('error', 'Campos obligatorios incompletos');
-            $this->redirigir('miPerfil');
+            throw new Exception('Campos obligatorios incompletos');
         }
 
         // Validar email
         if (!filter_var($_POST['email'], FILTER_VALIDATE_EMAIL)) {
-            $this->setMensaje('error', 'Email inválido');
-            $this->redirigir('miPerfil');
+            throw new Exception('Email inválido');
         }
 
-        try {
-            $password = !empty($_POST['password']) ? $_POST['password'] : null;
-            Usuario::actualizarUsuario(
-                (int)$usuarioId,
-                $_POST['nombre'],
-                $_POST['email'],
-                $_POST['telefono'] ?? '',
-                $password
-            );
+        $pdo->beginTransaction();
 
-            $this->setMensaje('exito', 'Perfil actualizado exitosamente');
-        } catch (Exception $e) {
-            error_log("Error al actualizar perfil: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al actualizar el perfil');
+        // Actualizar tabla usuarios
+        $stmtUsuario = $pdo->prepare("
+            UPDATE usuarios 
+            SET nombre = :nombre, 
+                email = :email, 
+                telefono = :telefono
+            WHERE id = :id
+        ");
+        
+        $stmtUsuario->execute([
+            ':nombre' => trim($_POST['nombre']),
+            ':email' => trim($_POST['email']),
+            ':telefono' => trim($_POST['telefono'] ?? ''),
+            ':id' => $usuarioId
+        ]);
+
+        // Si es doctor, actualizar tabla doctores
+        if ($rol === 'doctor') {
+            $stmtDoctor = $pdo->prepare("
+                UPDATE doctores 
+                SET especialidad_id = :especialidad_id,
+                    numero_colegiatura = :numero_colegiatura
+                WHERE usuario_id = :usuario_id
+            ");
+            
+            $especialidadId = !empty($_POST['especialidad_id']) ? (int)$_POST['especialidad_id'] : null;
+            
+            $stmtDoctor->execute([
+                ':especialidad_id' => $especialidadId,
+                ':numero_colegiatura' => trim($_POST['numero_colegiatura'] ?? ''),
+                ':usuario_id' => $usuarioId
+            ]);
         }
 
-        $this->redirigir('miPerfil');
+        // Si es paciente, actualizar tabla pacientes
+        if ($rol === 'paciente') {
+            $stmtPaciente = $pdo->prepare("
+                UPDATE pacientes 
+                SET fecha_nacimiento = :fecha_nacimiento,
+                    genero = :genero,
+                    direccion = :direccion,
+                    dni = :dni
+                WHERE usuario_id = :usuario_id
+            ");
+            
+            $stmtPaciente->execute([
+                ':fecha_nacimiento' => !empty($_POST['fecha_nacimiento']) ? $_POST['fecha_nacimiento'] : null,
+                ':genero' => $_POST['genero'] ?? null,
+                ':direccion' => trim($_POST['direccion'] ?? ''),
+                ':dni' => trim($_POST['dni'] ?? 'Sin DNI'),
+                ':usuario_id' => $usuarioId
+            ]);
+        }
+
+        $pdo->commit();
+
+        $this->setMensaje('exito', '✅ Perfil actualizado exitosamente');
+
+    } catch (Exception $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        error_log("Error al actualizar perfil: " . $e->getMessage());
+        $this->setMensaje('error', 'Error: ' . $e->getMessage());
     }
+
+    // Redirigir según rol
+    $accion = match($rol) {
+        'admin' => 'miPerfil',
+        'doctor' => 'doctorPerfil',
+        'paciente' => 'pacientePerfil',
+        default => 'miPerfil'
+    };
+
+    $this->redirigir($accion);
+}
 
     /**
      * Cambia la contraseña del usuario logueado
      */
-    public function cambiarPassword()
-    {
-        Autenticacion::requiereLogin();
+   public function cambiarPassword()
+{
+    Autenticacion::requiereLogin();
 
-        $usuarioId = $_SESSION['usuario_id'] ?? null;
-        if (!$usuarioId) {
-            $this->redirigir('login');
-        }
+    $usuarioId = $_SESSION['usuario_id'] ?? null;
+    $rol = $_SESSION['rol'] ?? 'paciente';
+    
+    if (!$usuarioId) {
+        $this->redirigir('login');
+    }
 
-        $passwordActual = $_POST['password_actual'] ?? '';
-        $passwordNueva = $_POST['password_nueva'] ?? '';
-        $passwordConfirmar = $_POST['password_confirmar'] ?? '';
+    $passwordActual = $_POST['password_actual'] ?? '';
+    $passwordNueva = $_POST['password_nueva'] ?? '';
+    $passwordConfirmar = $_POST['password_confirmar'] ?? '';
 
+    try {
         // Validaciones
         if (empty($passwordActual) || empty($passwordNueva) || empty($passwordConfirmar)) {
-            $this->setMensaje('error', 'Todos los campos son obligatorios');
-            $this->redirigir('miPerfil');
+            throw new Exception('Todos los campos son obligatorios');
         }
 
         if ($passwordNueva !== $passwordConfirmar) {
-            $this->setMensaje('error', 'Las contraseñas nuevas no coinciden');
-            $this->redirigir('miPerfil');
+            throw new Exception('Las contraseñas nuevas no coinciden');
         }
 
         if (strlen($passwordNueva) < 6) {
-            $this->setMensaje('error', 'La contraseña debe tener al menos 6 caracteres');
-            $this->redirigir('miPerfil');
+            throw new Exception('La contraseña debe tener al menos 6 caracteres');
         }
 
-        try {
-            // Verificar contraseña actual
-            $usuario = Usuario::buscarPorId($usuarioId);
-            if (!$usuario || !password_verify($passwordActual, $usuario->getPassword())) {
-                $this->setMensaje('error', 'Contraseña actual incorrecta');
-                $this->redirigir('miPerfil');
-            }
-
-            // Actualizar contraseña
-            Usuario::actualizarUsuario(
-                (int)$usuarioId,
-                $usuario->getNombre(),
-                $usuario->getEmail(),
-                $usuario->getTelefono(),
-                $passwordNueva
-            );
-
-            $this->setMensaje('exito', 'Contraseña actualizada exitosamente');
-        } catch (Exception $e) {
-            error_log("Error al cambiar contraseña: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al cambiar la contraseña');
+        // Verificar contraseña actual
+        $usuario = Usuario::buscarPorId($usuarioId);
+        if (!$usuario || !password_verify($passwordActual, $usuario->getPassword())) {
+            throw new Exception('Contraseña actual incorrecta');
         }
 
-        $this->redirigir('miPerfil');
+        // Actualizar contraseña
+        Usuario::actualizarUsuario(
+            (int)$usuarioId,
+            $usuario->getNombre(),
+            $usuario->getEmail(),
+            $usuario->getTelefono(),
+            $passwordNueva
+        );
+
+        $this->setMensaje('exito', '✅ Contraseña cambiada exitosamente');
+
+    } catch (Exception $e) {
+        error_log("Error al cambiar contraseña: " . $e->getMessage());
+        $this->setMensaje('error', 'Error: ' . $e->getMessage());
     }
 
+    // Redirigir según rol
+    $accion = match($rol) {
+        'admin' => 'miPerfil',
+        'doctor' => 'doctorPerfil',
+        'paciente' => 'pacientePerfil',
+        default => 'miPerfil'
+    };
+
+    $this->redirigir($accion);
+}
     /**
      * Cambia el rol de un usuario (solo admin)
      */

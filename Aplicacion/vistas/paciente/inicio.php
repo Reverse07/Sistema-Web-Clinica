@@ -372,6 +372,40 @@ $nombrePaciente = $_SESSION['nombre'] ?? 'Paciente';
     }
 
     /* ========================
+       LOGOUT BUTTON
+       ======================== */
+    .logout-btn {
+        background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+        border: none;
+        border-radius: 1.25rem;
+        padding: 1.5rem;
+        text-align: center;
+        text-decoration: none;
+        color: white;
+        font-weight: 600;
+        font-size: 0.95rem;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 8px 25px rgba(239, 68, 68, 0.3);
+        cursor: pointer;
+    }
+
+    .logout-btn:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 15px 35px rgba(239, 68, 68, 0.4);
+        color: white;
+    }
+
+    .logout-btn:active {
+        transform: translateY(-4px);
+    }
+
+    /* ========================
        CITAS SECTION
        ======================== */
     .citas-section {
@@ -668,6 +702,11 @@ $nombrePaciente = $_SESSION['nombre'] ?? 'Paciente';
                 <span class="action-icon">👤</span>
                 <span>Mi Perfil</span>
             </a>
+            <!-- BOTÓN DE CERRAR SESIÓN -->
+            <button onclick="cerrarSesion()" class="logout-btn">
+                <span class="action-icon">🚪</span>
+                <span>Cerrar Sesión</span>
+            </button>
         </div>
     </div>
 
@@ -698,11 +737,11 @@ $nombrePaciente = $_SESSION['nombre'] ?? 'Paciente';
                     <div class="cita-details">
                         <div class="detail-item">
                             <i class="bi bi-calendar-event"></i>
-                            <span><?= date('d/m/Y', strtotime($cita['fecha'])) ?></span>
+                            <span><?= htmlspecialchars($cita['fecha_formateada'] ?? date('d/m/Y', strtotime($cita['fecha']))) ?></span>
                         </div>
                         <div class="detail-item">
                             <i class="bi bi-clock"></i>
-                            <span><?= date('h:i A', strtotime($cita['fecha'])) ?></span>
+                            <span><?= htmlspecialchars($cita['hora_formateada'] ?? date('H:i', strtotime($cita['fecha']))) ?></span>
                         </div>
                         <div class="detail-item">
                             <i class="bi bi-geo-alt"></i>
@@ -729,6 +768,22 @@ function updateClock() {
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]}`;
     document.getElementById('current-date').textContent = dateStr;
+}
+
+// Función para cerrar sesión
+function cerrarSesion() {
+    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+        // Mostrar loader o mensaje de espera
+        const logoutBtn = event.target.closest('.logout-btn');
+        const originalContent = logoutBtn.innerHTML;
+        logoutBtn.innerHTML = '<span class="action-icon">⏳</span><span>Cerrando sesión...</span>';
+        logoutBtn.disabled = true;
+        
+        // Redirigir al logout
+        setTimeout(() => {
+            window.location.href = '<?= BASE_URL ?>/index.php?accion=logout';
+        }, 1000);
+    }
 }
 
 updateClock();

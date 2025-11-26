@@ -6,26 +6,22 @@
 // =====================================================
 
 // =====================================================
-// 🔹 PASO 1: CONFIGURACIÓN (sin session_start)
+// 🔹 PASO 1: CONFIGURACIÓN
 // =====================================================
 require_once __DIR__ . "/../configuracion/app.php";
 
 // =====================================================
-// 🔹 PASO 2: INICIAR SESIÓN (después de configurar)
-// =====================================================
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-
-// =====================================================
-// 🔹 PASO 3: NÚCLEO DEL SISTEMA
+// 🔹 PASO 2: NÚCLEO DEL SISTEMA
 // =====================================================
 require_once __DIR__ . "/../nucleo/Autenticacion.php";
 require_once __DIR__ . "/../nucleo/Enrutador.php";
 require_once __DIR__ . "/../nucleo/BaseDatos.php";
 
+// ✅ Iniciar sesión segura UNA SOLA VEZ
+Autenticacion::iniciarSesionSegura();
+
 // =====================================================
-// 🔹 PASO 4: AUTOLOAD DE COMPOSER (TCPDF, PHPMailer, etc.)
+// 🔹 PASO 3: AUTOLOAD DE COMPOSER (TCPDF, PHPMailer, etc.)
 // =====================================================
 if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
     require_once __DIR__ . '/../vendor/autoload.php';
@@ -34,7 +30,7 @@ if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
 }
 
 // =====================================================
-// 🔹 PASO 5: CONTROLADORES
+// 🔹 PASO 4: CONTROLADORES
 // =====================================================
 $controladores = [
     'AuthControlador',
@@ -60,7 +56,7 @@ foreach ($controladores as $controlador) {
 }
 
 // =====================================================
-// 🚦 PASO 6: ENRUTAMIENTO
+// 🚦 PASO 5: ENRUTAMIENTO
 // =====================================================
 
 // Detectar acción desde URL
@@ -72,13 +68,18 @@ $rutas = [
     // ========================================
     // 🔐 AUTENTICACIÓN
     // ========================================
-    "loginVista"    => [AuthControlador::class, "loginVista"],
-    "login"         => [AuthControlador::class, "login"],
-    "registroVista" => [AuthControlador::class, "registroVista"],
-    "registro"      => [AuthControlador::class, "registro"],
-    "logout"        => [AuthControlador::class, "logout"],
-    "terminos"      => [AuthControlador::class, "terminos"],
-    "privacidad"    => [AuthControlador::class, "privacidad"],
+    "loginVista"                    => [AuthControlador::class, "loginVista"],
+    "login"                         => [AuthControlador::class, "login"],
+    "registroVista"                 => [AuthControlador::class, "registroVista"],
+    "registro"                      => [AuthControlador::class, "registro"],
+    "logout"                        => [AuthControlador::class, "logout"],
+    "terminos"                      => [AuthControlador::class, "terminos"],
+    "privacidad"                    => [AuthControlador::class, "privacidad"],
+    
+    // 🔐 Recuperación de contraseña por SMS
+    "enviarCodigoRecuperacion"      => [AuthControlador::class, "enviarCodigoRecuperacion"],
+    "verificarCodigoRecuperacion"   => [AuthControlador::class, "verificarCodigoRecuperacion"],
+    "cambiarPasswordRecuperacion"   => [AuthControlador::class, "cambiarPasswordRecuperacion"],
 
     // ========================================
     // 👨‍💼 ADMINISTRADOR
@@ -108,12 +109,42 @@ $rutas = [
     // ========================================
     // 🩺 DOCTORES
     // ========================================
-    // Vistas del rol doctor
+    "Dashboard"                  => [DoctorControlador::class, "dashboard"],
+    "dashboardDoctor"            => [DoctorControlador::class, "dashboard"],
     "doctorDashboard"            => [DoctorControlador::class, "dashboard"],
     "doctorPerfil"               => [DoctorControlador::class, "perfil"],
+    "perfilDoctor"               => [DoctorControlador::class, "perfil"], // ✅ NUEVA RUTA AÑADIDA
     "doctorCitas"                => [DoctorControlador::class, "misCitas"],
+    "verCitas"                   => [DoctorControlador::class, "misCitas"],
+    "configuracionDoctor"        => [DoctorControlador::class, "configuracion"], // ✅ AÑADIR ESTA LÍNEA
+    "guardarConfiguracionDoctor"    => [DoctorControlador::class, "guardarConfiguracionDoctor"], // ✅ AÑADIR
+    "verDetalleCita"             => [DoctorControlador::class, "verDetalle"],
+
+    // ========================================
+    // 📋 HISTORIAS CLÍNICAS - Doctor
+    // ========================================
     "doctorHistorias"            => [DoctorControlador::class, "misHistorias"],
+    "historialPacientes"         => [DoctorControlador::class, "misHistorias"],
+    "crearHistoria"              => [DoctorControlador::class, "crearHistoria"],
+    "guardarHistoria"            => [DoctorControlador::class, "guardarHistoria"],
+    "editarHistoria"             => [DoctorControlador::class, "editarHistoria"],
+    "actualizarHistoria"         => [DoctorControlador::class, "actualizarHistoria"],
+
+    // ========================================
+    // 💊 RECETAS - DOCTOR (RUTAS CORREGIDAS)
+    // ========================================
     "doctorRecetas"              => [DoctorControlador::class, "misRecetas"],
+    "doctorCrearReceta"          => [DoctorControlador::class, "crearReceta"],
+    "doctorGuardarReceta"        => [DoctorControlador::class, "guardarReceta"],
+    "verReceta"                  => [DoctorControlador::class, "verReceta"],
+    "imprimirReceta"             => [DoctorControlador::class, "imprimirReceta"],
+    
+    // Alternativas para mayor compatibilidad:
+    "recetasEmitidas"            => [DoctorControlador::class, "misRecetas"],
+    "misRecetas"                 => [DoctorControlador::class, "misRecetas"],
+    "verMiReceta"                => [DoctorControlador::class, "verReceta"],
+    "crearReceta"                => [DoctorControlador::class, "crearReceta"],
+    "guardarReceta"              => [DoctorControlador::class, "guardarReceta"],
 
     // Gestión desde admin
     "gestionarDoctores"          => [DoctorControlador::class, "gestionarDoctores"],
@@ -133,16 +164,21 @@ $rutas = [
     "perfilPaciente"             => [PacienteControlador::class, "perfil"],
     "pacienteCitas"              => [PacienteControlador::class, "misCitas"],
     "misCitas"                   => [PacienteControlador::class, "misCitas"],
-    "pacienteHistorial"          => [PacienteControlador::class, "miHistorial"],
-    "miHistorial"                => [PacienteControlador::class, "miHistorial"],
-    "historialMedico"            => [PacienteControlador::class, "miHistorial"],
-    "verHistoriaPaciente"        => [PacienteControlador::class, "verHistoria"],
-    "descargarHistorial"         => [PacienteControlador::class, "descargarHistorial"],
-    "imprimirHistoria"           => [PacienteControlador::class, "imprimirHistoria"],
     "pacienteFacturas"           => [PacienteControlador::class, "misFacturas"],
     "misFacturas"                => [PacienteControlador::class, "misFacturas"],
     "crearCitaPaciente"          => [CitaControlador::class, "crearCitaPaciente"],
     "guardarCitaPaciente"        => [CitaControlador::class, "guardarCitaPaciente"],
+
+    // ========================================
+    // 📋 HISTORIAS CLÍNICAS - Paciente
+    // ========================================
+    "pacienteHistorial"          => [PacienteControlador::class, "miHistorial"],
+    "miHistorial"                => [PacienteControlador::class, "miHistorial"],
+    "historialMedico"            => [PacienteControlador::class, "miHistorial"],
+    "verHistoria"                => [PacienteControlador::class, "verHistoria"],
+    "verHistoriaPaciente"        => [PacienteControlador::class, "verHistoria"],
+    "descargarHistoria"          => [PacienteControlador::class, "descargarHistoria"],
+    "imprimirHistoria"           => [PacienteControlador::class, "imprimirHistoria"],
 
     // Gestión desde admin
     "gestionarPacientes"         => [PacienteControlador::class, "gestionarPacientes"],
@@ -164,25 +200,24 @@ $rutas = [
     "actualizarMiPerfil"         => [UsuarioControlador::class, "actualizarMiPerfil"],
     "cambiarPassword"            => [UsuarioControlador::class, "cambiarPassword"],
 
-// ========================================
-// 📅 CITAS
-// ========================================
-"gestionarCitas"             => [CitaControlador::class, "gestionar"],
-"citas"                      => [CitaControlador::class, "gestionar"],
-"crearCita"                  => [CitaControlador::class, "crear"],
-"guardarCita"                => [CitaControlador::class, "guardar"],
-"editarCita"                 => [CitaControlador::class, "editar"],  // ✅ ESTA ES LA CORRECTA
-"editar"                     => [CitaControlador::class, "editar"],  // ✅ AGREGAR ESTA LÍNEA
-"actualizarCita"             => [CitaControlador::class, "actualizar"],
-"verDetalleCita"             => [CitaControlador::class, "verDetalle"],
-"confirmarCita"              => [CitaControlador::class, "confirmar"],
-"confirmar"                  => [CitaControlador::class, "confirmar"],  // ✅ AGREGAR ESTA LÍNEA
-"cancelarCita"               => [CitaControlador::class, "cancelar"],
-"cancelar"                   => [CitaControlador::class, "cancelar"],   // ✅ AGREGAR ESTA LÍNEA
-"eliminarCita"               => [CitaControlador::class, "eliminarCita"],
-"reprogramarCita"            => [CitaControlador::class, "reprogramarCita"],
-"guardarReprogramacion"      => [CitaControlador::class, "guardarReprogramacion"],
-"obtenerHorariosDisponibles" => [CitaControlador::class, "obtenerHorariosDisponibles"],
+    // ========================================
+    // 📅 CITAS
+    // ========================================
+    "gestionarCitas"             => [CitaControlador::class, "gestionar"],
+    "citas"                      => [CitaControlador::class, "gestionar"],
+    "crearCita"                  => [CitaControlador::class, "crear"],
+    "guardarCita"                => [CitaControlador::class, "guardar"],
+    "editarCita"                 => [CitaControlador::class, "editar"],
+    "editar"                     => [CitaControlador::class, "editar"],
+    "actualizarCita"             => [CitaControlador::class, "actualizar"],
+    "confirmarCita"              => [CitaControlador::class, "confirmar"],
+    "confirmar"                  => [CitaControlador::class, "confirmar"],
+    "cancelarCita"               => [CitaControlador::class, "cancelar"],
+    "cancelar"                   => [CitaControlador::class, "cancelar"],
+    "eliminarCita"               => [CitaControlador::class, "eliminarCita"],
+    "reprogramarCita"            => [CitaControlador::class, "reprogramarCita"],
+    "guardarReprogramacion"      => [CitaControlador::class, "guardarReprogramacion"],
+    "obtenerHorariosDisponibles" => [CitaControlador::class, "obtenerHorariosDisponibles"],
 
     // ========================================
     // 💳 FACTURAS
@@ -194,28 +229,8 @@ $rutas = [
     "editarFactura"              => [FacturaControlador::class, "editarFactura"],
     "actualizarFactura"          => [FacturaControlador::class, "actualizarFactura"],
     "eliminarFactura"            => [FacturaControlador::class, "eliminarFactura"],
+    "marcarPagada"               => [FacturaControlador::class, "marcarPagada"],
     "descargarFactura"           => [FacturaControlador::class, "descargar"],
-
-    // ========================================
-    // 📋 HISTORIAS CLÍNICAS
-    // ========================================
-    "gestionarHistorias"         => [HistoriaControlador::class, "gestionar"],
-    "crearHistoria"              => [HistoriaControlador::class, "crear"],
-    "guardarHistoria"            => [HistoriaControlador::class, "guardar"],
-    "verHistoria"                => [HistoriaControlador::class, "ver"],
-    "editarHistoria"             => [HistoriaControlador::class, "editar"],
-    "actualizarHistoria"         => [HistoriaControlador::class, "actualizar"],
-
-    // ========================================
-    // 💊 RECETAS
-    // ========================================
-    "misRecetas"                 => [RecetaControlador::class, "misRecetas"],
-    "verMiReceta"                => [RecetaControlador::class, "verMiReceta"],
-    "gestionarRecetas"           => [RecetaControlador::class, "gestionar"],
-    "crearReceta"                => [RecetaControlador::class, "crear"],
-    "guardarReceta"              => [RecetaControlador::class, "guardar"],
-    "verReceta"                  => [RecetaControlador::class, "ver"],
-    "imprimirReceta"             => [RecetaControlador::class, "imprimir"],
 
     // ========================================
     // 📊 REPORTES
@@ -226,7 +241,7 @@ $rutas = [
 ];
 
 // =====================================================
-// 🚀 PASO 7: EJECUTAR ENRUTADOR
+// 🚀 PASO 6: EJECUTAR ENRUTADOR
 // =====================================================
 try {
     Enrutador::resolver($accion, $rutas);

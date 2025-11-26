@@ -5,11 +5,9 @@ require_once __DIR__ . '/../configuracion/app.php';
 class Autenticacion
 {
 
-    // 🔐 Configura sesión segura
-    public static function iniciarSesionSegura(): void
+      public static function iniciarSesionSegura(): void
     {
         if (session_status() !== PHP_SESSION_ACTIVE) {
-
             session_set_cookie_params([
                 'lifetime' => 0,
                 'path' => '/',
@@ -18,7 +16,6 @@ class Autenticacion
                 'httponly' => true,
                 'samesite' => 'Lax'
             ]);
-
             session_start();
         }
     }
@@ -50,40 +47,36 @@ class Autenticacion
         return false;
     }
 
-    // 🔑 Guarda ID, rol y CSRF al iniciar sesión
     public static function login(int $usuarioId, string $rol): void
     {
         self::iniciarSesionSegura();
-
         $_SESSION['usuario_id'] = $usuarioId;
         $_SESSION['rol'] = $rol;
         $_SESSION['csrf'] = bin2hex(random_bytes(32));
-
         session_regenerate_id(true);
     }
 
-    // 🚪 Cierra sesión limpiamente
-    public static function logout(): void
+     public static function cerrarSesion(): void
     {
-        self::iniciarSesionSegura();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+
+        $usuarioId = $_SESSION['usuario_id'] ?? 'desconocido';
+        $rol = $_SESSION['rol'] ?? 'desconocido';
+        
+        error_log("🔓 [LOGOUT] Usuario ID: {$usuarioId} (Rol: {$rol}) cerró sesión");
 
         $_SESSION = [];
 
         if (ini_get('session.use_cookies')) {
             $params = session_get_cookie_params();
-
-            setcookie(
-                session_name(),
-                '',
-                time() - 42000,
-                $params['path'],
-                $params['domain'],
-                $params['secure'],
-                $params['httponly']
-            );
+            setcookie(session_name(), '', time() - 42000, $params['path'], 
+                     $params['domain'], $params['secure'], $params['httponly']);
         }
 
         session_destroy();
+        error_log("✅ [LOGOUT] Sesión destruida exitosamente");
     }
 
     // 🆔 Devuelve el ID del usuario logueado
@@ -92,6 +85,19 @@ class Autenticacion
         self::iniciarSesionSegura();
         return $_SESSION['usuario_id'] ?? null;
     }
+
+    /**
+     * ✅ Verifica si hay una sesión activa
+     */
+    public static function haySesionActiva(): bool
+    {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        return isset($_SESSION['usuario_id']) && isset($_SESSION['rol']);
+    }
+
 
     // 🔒 Exige que el usuario tenga ciertos roles
     public static function requiereRoles(array $roles): void

@@ -598,7 +598,8 @@ function marcarComoPagada(facturaId) {
         cancelButtonColor: '#6c757d'
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = `${window.BASE_URL}/index.php?accion=marcarPagada&id=${facturaId}`;
+            // ✅ URL corregida
+            window.location.href = '<?= BASE_URL ?>/index.php?accion=marcarPagada&id=' + facturaId;
         }
     });
 }
@@ -608,7 +609,7 @@ function eliminarFactura(facturaId) {
         title: '¿Eliminar factura?',
         html: `
             <p>Estás a punto de eliminar la factura <strong>#${String(facturaId).padStart(4, '0')}</strong></p>
-            <p style="color: #dc3545; font-weight: bold;">⚠️ Esta acción NO se puede deshacer</p>
+            <p style="color: #dc3545; font-weight: bold;">⚠ Esta acción NO se puede deshacer</p>
         `,
         icon: 'warning',
         showCancelButton: true,
@@ -619,7 +620,8 @@ function eliminarFactura(facturaId) {
         reverseButtons: true
     }).then((result) => {
         if (result.isConfirmed) {
-            window.location.href = `${window.BASE_URL}/index.php?accion=eliminarFactura&id=${facturaId}`;
+            // ✅ URL corregida
+            window.location.href = '<?= BASE_URL ?>/index.php?accion=eliminarFactura&id=' + facturaId;
         }
     });
 }

@@ -401,6 +401,47 @@ public static function eliminarPaciente(int $id): bool
 }
 
 /**
+ * Busca un usuario por número de teléfono
+ * Maneja diferentes formatos: 987654321, +51987654321, 51987654321
+ */
+public static function buscarPorTelefono(string $telefono): ?Usuario
+{
+    $pdo = BaseDatos::pdo();
+    
+    // Limpiar el teléfono de espacios y caracteres especiales
+    $telefonoLimpio = preg_replace('/[^0-9]/', '', $telefono);
+    
+    error_log("🔍 [BUSCAR TELEFONO] Original: $telefono");
+    error_log("🔍 [BUSCAR TELEFONO] Limpio: $telefonoLimpio");
+    
+    // Intentar buscar con diferentes formatos
+    $formatos = [
+        $telefono,                    // Original (ej: +51987654321)
+        $telefonoLimpio,              // Sin caracteres (ej: 51987654321)
+        substr($telefonoLimpio, -9),  // Últimos 9 dígitos (ej: 987654321)
+    ];
+    
+    // Eliminar duplicados
+    $formatos = array_unique($formatos);
+    
+    foreach ($formatos as $formato) {
+        error_log("🔍 [BUSCAR TELEFONO] Intentando con: $formato");
+        
+        $stmt = $pdo->prepare("SELECT * FROM usuarios WHERE telefono = :telefono LIMIT 1");
+        $stmt->execute([':telefono' => $formato]);
+        $fila = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($fila) {
+            error_log("✅ [BUSCAR TELEFONO] Usuario encontrado con formato: $formato");
+            return new Usuario($fila);
+        }
+    }
+    
+    error_log("❌ [BUSCAR TELEFONO] Usuario no encontrado con ningún formato");
+    return null;
+}
+
+/**
  * Elimina un doctor del sistema (usuario + registro de doctor)
  * @param int $usuarioId ID del usuario (rol doctor)
  * @return bool
@@ -504,6 +545,8 @@ public static function eliminarDoctor(int $usuarioId): bool
         error_log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         throw $e;
     }
+
+    
 }
 
     // =====================

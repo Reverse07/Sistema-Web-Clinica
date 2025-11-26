@@ -101,6 +101,8 @@ class FacturaControlador
         require __DIR__ . "/../../includes/layout-admin.php";
     }
 
+    
+
     /**
      * 💾 Guardar nueva factura
      */
@@ -217,6 +219,46 @@ class FacturaControlador
 
         $this->redirigir('gestionarFacturas');
     }
+
+
+    // ============================================================
+// ✅ Marcar factura como pagada
+// Agregar este método en FacturaControlador.php
+// ============================================================
+
+public function marcarPagada()
+{
+    Autenticacion::requiereRoles(['admin']);
+
+    $id = $_GET['id'] ?? null;
+
+    if (!$id) {
+        $this->setMensaje('error', 'ID no proporcionado');
+        $this->redirigir('gestionarFacturas');
+    }
+
+    try {
+        $pdo = BaseDatos::pdo();
+        
+        // Actualizar estado a Pagada
+        $sql = "UPDATE facturas SET estado = 'Pagada' WHERE id = :id";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':id' => $id]);
+        
+        if ($stmt->rowCount() > 0) {
+            $this->setMensaje('exito', '✅ Factura marcada como PAGADA exitosamente');
+        } else {
+            $this->setMensaje('error', 'No se pudo actualizar la factura');
+        }
+    } catch (Exception $e) {
+        error_log("Error al marcar factura como pagada: " . $e->getMessage());
+        $this->setMensaje('error', 'Error al actualizar el estado de la factura');
+    }
+
+    // Redirigir de vuelta a la vista de detalle
+    $this->redirigir('verFactura', ['id' => $id]);
+}
+
 
     // ============================================================
     // 🗑️ Eliminar factura

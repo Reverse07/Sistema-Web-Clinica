@@ -204,16 +204,13 @@ class RecetaControlador
     /**
      * Muestra formulario para crear una nueva receta
      */
-    public function crear()
-    {
-        Autenticacion::requiereRoles(['admin', 'doctor']);
-
-        $pacientes = $this->obtenerPacientesConDatos();
-        $medicamentos = Medicamento::todos();
-
-        $vistaInterna = __DIR__ . "/../vistas/admin/crearReceta.php";
-        require __DIR__ . "/../../includes/layout-admin.php";
-    }
+  public function crear()
+{
+    Autenticacion::requiereRoles(['doctor']);
+    
+    $vistaInterna = __DIR__ . "/../vistas/doctor/crearReceta.php";
+    require __DIR__ . "/../../includes/layout-doctor.php";
+}
 
     /**
      * Obtiene lista de pacientes con datos completos
@@ -341,6 +338,14 @@ class RecetaControlador
         // Cargar vista de impresión (sin layout)
         require __DIR__ . "/../vistas/recetas/imprimir.php";
     }
+
+    public function verReceta()
+{
+    Autenticacion::requiereRoles(['doctor']);
+    
+    $vistaInterna = __DIR__ . "/../vistas/doctor/verReceta.php";
+    require __DIR__ . "/../../includes/layout-doctor.php";
+}
 
     // ========================================
     // ELIMINAR

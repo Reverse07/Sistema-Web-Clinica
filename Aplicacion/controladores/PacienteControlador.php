@@ -144,27 +144,124 @@ class PacienteControlador
     }
 
     /**
-     * 📁 Historial médico del paciente
-     */
-    public function miHistorial()
-    {
-        Autenticacion::requiereRoles(['paciente']);
+ * 📋 Historial médico del paciente
+ */
+public function miHistorial()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $usuarioId = Autenticacion::usuarioId();
+    $pdo = BaseDatos::pdo();
+    
+    try {
+        // Obtener ID del paciente
+        $stmtPaciente = $pdo->prepare("SELECT id FROM pacientes WHERE usuario_id = :usuario_id");
+        $stmtPaciente->execute([':usuario_id' => $usuarioId]);
+        $paciente = $stmtPaciente->fetch(PDO::FETCH_ASSOC);
         
-        try {
-            $usuarioId = Autenticacion::usuarioId();
-            $pacienteId = $this->obtenerPacienteId($usuarioId);
-            
-            $historial = $this->obtenerHistorialCompleto($pacienteId);
-            
-            $vistaInterna = __DIR__ . "/../vistas/paciente/historial.php";
-            require __DIR__ . "/../../includes/layout-paciente.php";
-            
-        } catch (Exception $e) {
-            error_log("❌ Error en miHistorial: " . $e->getMessage());
-            $this->setMensaje('error', 'Error al cargar el historial');
-            $this->redirigir('dashboardPaciente');
+        if (!$paciente) {
+            throw new Exception("Paciente no encontrado");
         }
+        
+        $pacienteId = $paciente['id'];
+        
+        // Obtener todas las historias clínicas del paciente
+        $stmtHistorias = $pdo->prepare("
+            SELECT 
+                hc.id,
+                hc.motivo,
+                hc.diagnostico,
+                hc.indicaciones,
+                hc.observaciones,
+                hc.creada_en,
+                ud.nombre as doctor_nombre,
+                d.numero_colegiatura,
+                e.nombre as especialidad,
+                TO_CHAR(c.fecha, 'DD/MM/YYYY') as fecha_cita
+            FROM historia_clinica hc
+            INNER JOIN doctores d ON hc.doctor_id = d.id
+            INNER JOIN usuarios ud ON d.usuario_id = ud.id
+            LEFT JOIN especialidades e ON d.especialidad_id = e.id
+            INNER JOIN citas c ON hc.cita_id = c.id
+            WHERE hc.paciente_id = :paciente_id
+            ORDER BY hc.creada_en DESC
+        ");
+        $stmtHistorias->execute([':paciente_id' => $pacienteId]);
+        $historias = $stmtHistorias->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Estadísticas
+        $stmtStats = $pdo->prepare("
+            SELECT 
+                COUNT(*) as total,
+                MAX(creada_en) as ultima_consulta_fecha
+            FROM historia_clinica 
+            WHERE paciente_id = :paciente_id
+        ");
+        $stmtStats->execute([':paciente_id' => $pacienteId]);
+        $stats = $stmtStats->fetch(PDO::FETCH_ASSOC);
+        
+        // Última consulta con detalles
+        $ultimaConsulta = null;
+        if (!empty($historias)) {
+            $ultimaConsulta = $historias[0];
+        }
+        
+        // Especialidades visitadas
+        $stmtEspecialidades = $pdo->prepare("
+            SELECT 
+                COALESCE(e.nombre, 'Medicina General') as especialidad,
+                COUNT(*) as cantidad
+            FROM historia_clinica hc
+            INNER JOIN doctores d ON hc.doctor_id = d.id
+            LEFT JOIN especialidades e ON d.especialidad_id = e.id
+            WHERE hc.paciente_id = :paciente_id
+            GROUP BY e.nombre
+            ORDER BY cantidad DESC
+        ");
+        $stmtEspecialidades->execute([':paciente_id' => $pacienteId]);
+        $especialidades = $stmtEspecialidades->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Preparar estadísticas
+        $estadisticas = [
+            'total' => $stats['total'] ?? 0,
+            'ultima_consulta' => $ultimaConsulta,
+            'especialidades' => $especialidades
+        ];
+        
+        // Extraer variables para la vista
+        extract(compact('historias', 'estadisticas'));
+        
+        $vistaInterna = __DIR__ . "/../vistas/paciente/historial.php";
+        require __DIR__ . "/../../includes/layout-paciente.php";
+        
+    } catch (Exception $e) {
+        error_log("❌ Error en miHistorial: " . $e->getMessage());
+        echo "<div class='alert alert-danger'>Error: " . htmlspecialchars($e->getMessage()) . "</div>";
     }
+}
+
+/**
+ * 📄 Ver detalle de una historia clínica específica
+ */
+public function verHistoria()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    $vistaInterna = __DIR__ . "/../vistas/paciente/verHistoria.php";
+    require __DIR__ . "/../../includes/layout-paciente.php";
+}
+
+/**
+ * 📥 Descargar historia clínica en PDF
+ */
+public function descargarHistoria()
+{
+    Autenticacion::requiereRoles(['paciente']);
+    
+    // Este método generará un PDF de la historia clínica
+    $vistaInterna = __DIR__ . "/../vistas/paciente/descargarHistoria.php";
+    require $vistaInterna;
+}
 
     /**
      * 💳 Facturas del paciente
@@ -795,34 +892,8 @@ private function obtenerEstadisticasHistorial(int $pacienteId): array
 // ============================================================
 // 👁️ Ver historia clínica específica (paciente)
 // ============================================================
-/**
- * Permite al paciente ver una historia clínica específica
- * Solo si pertenece a él
- */
-public function verHistoria()
-{
-    Autenticacion::requiereRoles(['paciente']);
-    $id = $_GET['id'] ?? null;
-    if (!$id) {
-        $this->setMensaje('error', '❌ ID no proporcionado');
-        $this->redirigir('miHistorial');
-    }
-    $usuario = Autenticacion::usuario();
-    $pacienteId = $this->obtenerPacienteIdPorUsuarioId($usuario->getId());
-    // Obtener la historia clínica
-    $historia = $this->obtenerHistoriaPorId($id);
-    if (!$historia) {
-        $this->setMensaje('error', '❌ Historia clínica no encontrada');
-        $this->redirigir('miHistorial');
-    }
-    // Verificar que la historia pertenezca al paciente
-    if ($historia['paciente_id'] != $pacienteId) {
-        $this->setMensaje('error', '⛔ No tiene permiso para ver esta historia clínica');
-        $this->redirigir('miHistorial');
-    }
-    $vistaInterna = __DIR__ . "/../vistas/paciente/verHistoria.php";
-    require __DIR__ . "/../../includes/layout-paciente.php";
-}
+
+
 /**
  * Obtener historia clínica por ID con todos los datos
  */
@@ -900,21 +971,6 @@ public function imprimirHistoria(){
     }
     // TODO: Implementar vista de impresión optimizada
     $this->setMensaje('info', 'ℹ️ Funcionalidad de impresión en desarrollo');
-    $this->redirigir('verHistoria', ['id' => $id]);
-}
-/**
- * Descarga el historial médico en PDF
- */
-public function descargarHistoria()
-{
-    Autenticacion::requiereRoles(['paciente']); 
-    $id = $_GET['id'] ?? null;  
-    if (!$id) {
-        $this->setMensaje('error', 'ID no proporcionado');
-        $this->redirigir('historialMedico');
-    }
-    // Aquí implementar la generación de PDF
-    // Por ahora redirige a ver
     $this->redirigir('verHistoria', ['id' => $id]);
 }
 
